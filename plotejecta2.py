@@ -1,22 +1,23 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 from integratorparams import *
 from bodyparams import *
 import additionaleffects as ae
 
 inttime = np.arange(1e5)
 
-inner  = -1.3
-innery = -1.3
-outer  = 1.3
-outery = 1.3
+inner  = -.25
+innery = -.25
+outer  = 1.15
+outery = .8
 
 units = 1e3
 
 scale = 1e0
 
 partsize = .5*np.pi
-sun = 2
+sun = 1  # 1 for no binary; 2 for binary
 
 rmx = np.zeros(2)
 rmy = np.zeros(2)
@@ -39,16 +40,16 @@ for t in inttime:
 
 #	planetorbs = np.loadtxt(planets, skiprows=3, delimiter='	')
 	if binary == True:
-		Nplanets = 3
-	elif binary != True:
 		Nplanets = 2
+	elif binary != True:
+		Nplanets = 1
 
 
-	rdist = np.sqrt(rtarg**2 * 9000.)
+	rdist = np.sqrt((aT**2 + bT**2 + cT**2) * 9000.)
 
-	datax0 = data[0, 0]
-	datay0 = data[1, 0]
-	dataz0 = data[2, 0]
+	datax0  = data[0, 0]
+	datay0  = data[1, 0]
+	dataz0  = data[2, 0]
 	datavx0 = data[3, 0]
 	datavy0 = data[4, 0]
 	datavz0 = data[5, 0]
@@ -68,7 +69,7 @@ for t in inttime:
 
 
 
-	if data[0, Nplanets-2:].shape != ():
+	if data[0, Nplanets-1:].shape != ():
 		x = data[0, Nplanets:]
 		y = data[1, Nplanets:]
 		z = data[2, Nplanets:]
@@ -110,9 +111,9 @@ for t in inttime:
 #		radii = ae.partrad(r, counts, Nparts)
 
 	# arrow towards sun
-	dx = data[0, sun] / np.sqrt(data[0, sun]**2 + data[1, sun]**2 + data[2, sun]**2)
-	dy = data[1, sun] / np.sqrt(data[0, sun]**2 + data[1, sun]**2 + data[2, sun]**2)
-	dz = data[2, sun] / np.sqrt(data[0, sun]**2 + data[1, sun]**2 + data[2, sun]**2)
+	dx = -possun[0] / np.sqrt(possun[0]**2 + possun[1]**2 + possun[2]**2)
+	dy = -possun[1] / np.sqrt(possun[0]**2 + possun[1]**2 + possun[2]**2)
+	dz = -possun[2] / np.sqrt(possun[0]**2 + possun[1]**2 + possun[2]**2)
 
 
 	print data[0, 0]
@@ -144,17 +145,19 @@ for t in inttime:
 		ax.scatter(rmx[2:]/units, rmy[2:]/units, s=partsize, c='black', edgecolors='none')
 
 	if radpress == True:
-		ax.arrow(-100, 150, -50*dx, -50*dy, head_width=5, color='black', label='Sun')
-		ax.annotate('Sun', xy=(-100, 175), fontsize=16)
+                ax.arrow(1, .6, .050*dx, .050*dy, head_width=.01, color='black', label='Sun')
+	        ax.annotate('Sun', xy=(1, .53), fontsize=13)
+
+        ax.annotate('t='+str(np.round(seconds,3))+'s', xy=((inner+.07), (outery-.07)), fontsize=14)
 
 	ax.set_xlim(inner, outer)
 	ax.set_ylim(innery, outery)
-	axissize = 18
+        axissize = 18
 	ax.tick_params(labelsize=axissize)
 	font = 20
-	ax.set_title('t=' + str(np.round(seconds, 3)) + 's', fontsize=font)
-	ax.set_xlabel('x (km)', fontsize=font)
-	ax.set_ylabel('y (km)', fontsize=font)
+#	ax.set_title('t=' + str(np.round(seconds, 3)) + 's', fontsize=font)
+	ax.set_xlabel('x [km]', fontsize=font)
+	ax.set_ylabel('y [km]', fontsize=font)
 
 	plt.savefig('xy-zin' + str(int(t)) + condit + '.png')
 
@@ -181,15 +184,42 @@ for t in inttime:
 		ax.scatter(rmx[2:]/units, rmz[2:]/units, s=partsize, c='black', edgecolors='none')
 
 	if radpress == True:
-		ax.arrow(-100, 150, -50*dx, -50*dz, head_width=5, color='black', label='Sun')
-		ax.annotate('Sun', xy=(-100, 175), fontsize=16)
+	        ax.arrow(1, .6, .10*dx, .10*dz, head_width=.03, color='black', label='Sun')
+                ax.annotate('Sun', xy=(1, .53), fontsize=13)
 
+        ax.annotate('t='+str(np.round(seconds,3))+'s', xy=((inner+.07), (outery-.07)), fontsize=14)
+                
 	ax.set_xlim(inner, outer)
-	ax.set_ylim(innery, outer)
+	ax.set_ylim(innery, outery)
 	ax.tick_params(labelsize=axissize)
-	ax.set_title('t=' + str(np.round(seconds, 3)) + 's', fontsize=font)
-	ax.set_xlabel('x (km)', fontsize=font)
-	ax.set_ylabel('z (km)', fontsize=font)
+#	ax.set_title('t=' + str(np.round(seconds, 3)) + 's', fontsize=font)
+	ax.set_xlabel('x [km]', fontsize=font)
+	ax.set_ylabel('z [km]', fontsize=font)
 
 	plt.savefig('xz-zin' + str(int(t)) + condit + '.png')
 	#print (np.sqrt(np.asarray(binx)**2 + np.asarray(biny)**2 + np.asarray(binz)**2))
+
+
+        # Plot 3D
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+
+        fig.subplots_adjust(hspace=.4, bottom=.25, left=.25)
+
+        u = np.linspace(0, 2*np.pi, 100)
+        v = np.linspace(0, np.pi, 100)
+        xc = (aT/units) * np.outer(np.cos(u), np.sin(v))
+        yc = (bT/units) * np.outer(np.sin(u), np.sin(v))
+        zc = (cT/units) * np.outer(np.ones(np.size(u)), np.cos(v))
+        ax.plot_surface(xc, yc, zc, color='blue')
+        ax.scatter(x/units, y/units, z/units, s=partsize, c='red', edgecolors='none')
+
+        ax.set_xlabel('x [km]')
+        ax.set_ylabel('y [km]')
+        ax.set_zlabel('z [km]')
+
+        ax.set_xlim(inner, outer)
+        ax.set_ylim(innery, outer)
+        ax.set_zlim(innery, outer)
+        
+        plt.savefig('3d' + str(int(t)) + condit + '.png')

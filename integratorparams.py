@@ -22,7 +22,7 @@ lmax = 2
 integrator = 'ias15'   # Pick integrator to use (see REBOUND documentation about available integrators)
 
 # plotting conditions
-condit = '-didrad'+str(int(Nparts))   # special conditions of simulation to include in file name
+condit = '-rot'+str(int(Nparts))   # special conditions of simulation to include in file name
 scale  = 90               # scaling factor of planets and binary for plotting
 size   = 30                # size of system in plot
 sizez  = 5             # size of zoomed in system

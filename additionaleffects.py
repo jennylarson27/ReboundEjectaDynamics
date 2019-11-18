@@ -3,10 +3,324 @@
 import rebound
 import numpy as np
 import math as ma
+import basicsolarsystem1015 as bss
 
 
 
 ### Ellipsoidal Gravitational Acceleration ###
+
+def spheregrav(sim, Mtarg, Nparts, binary=False):
+    ''' ***Might not need this afterall*
+    Calculates gravity of spherical body
+
+    Currently in progress
+    Oct 4, 2019 - testing
+    '''
+
+    G = sim.G
+
+    inds = np.linspace(0, Nparts-1, Nparts)
+
+    if binary == True:
+        gravbod = 1
+        bodies  = np.delete(inds, gravbod, 0)
+    else:
+        gravbod = 0
+        bodies  = np.delete(inds, gravbod, 0)
+
+
+    c = sim.particles[gravbod]
+
+    # particle positions relative to gravitational body
+    xp = np.asarray([sim.particles[int(i)].x for i in bodies]) - c.x
+    yp = np.asarray([sim.particles[int(i)].y for i in bodies]) - c.y
+    zp = np.asarray([sim.particles[int(i)].z for i in bodies]) - c.z
+
+    r = np.sqrt(xp**2 + yp**2 + zp**2)
+
+    amag = (G * Mtarg) / r**2
+
+    ax = amag * (xp / r)
+    ay = amag * (yp / r)
+    az = amag * (zp / r)
+
+    return ax, ay, az
+
+
+def ellipgrav(sim, Mtarg, Nparts, a1, b1, c1, dt, omega, axdir, axtilt, binary=False):
+    ''' Calculates gravity of ellipsoidal body
+
+    Sept 17, 2019 - in progress
+    Oct 4, 2019 - testing
+    Oct 9, 2019 - still writing and testing
+    '''
+
+    G = sim.G
+
+    inds = np.linspace(0, Nparts-1, Nparts)
+
+    if binary == True:
+        gravbod = 1
+        bodies = np.delete(inds, gravbod, 0)
+    else:
+        gravbod = 0
+        bodies = np.delete(inds, gravbod, 0)
+
+    c = sim.particles[gravbod]
+
+    # particle positions relative to gravitational body
+    xp = np.asarray([sim.particles[int(i)].x for i in bodies]) - c.x
+    yp = np.asarray([sim.particles[int(i)].y for i in bodies]) - c.y
+    zp = np.asarray([sim.particles[int(i)].z for i in bodies]) - c.z
+
+    theta = np.radians(180. - axdir)
+    phi   = np.radians(180. - axtilt)
+    alpha = np.radians(180. - omega * dt)
+
+    phix = phi * np.sin(theta)
+    phiy = phi * np.cos(theta)
+
+    xtilt, ytilt, ztilt = bss.rotmatrix3d(xp, yp, zp, alpha, phiy, phix)
+
+
+    r = np.sqrt(xtilt ** 2 + ytilt ** 2 + ztilt ** 2)
+
+    xhat = xtilt / r
+    yhat = ytilt / r
+    zhat = ztilt / r
+
+
+    # Rotate hat vector back to global frame
+    theta = np.radians(axdir)
+    phi = np.radians(axtilt)
+    alpha = np.radians(omega * dt)
+
+    phix = phi * np.sin(theta)
+    phiy = phi * np.cos(theta)
+
+    xhatp, yhatp, zhatp = bss.rotmatrix3d(xhat, yhat, zhat, alpha, phiy, phix)
+
+
+    # calculate gravitational acceleration from shell potential
+    C1 = (a1 ** 2) / (b1 ** 2)
+    C2 = (a1 ** 2) / (c1 ** 2)
+
+    apos = np.sqrt(xtilt ** 2 + C1 * ytilt ** 2 + C2 * ztilt ** 2)
+
+    h = np.sqrt(a1**2 - b1**2)
+    k = np.sqrt(a1**2 - c1**2)
+
+    aellip = (G * Mtarg) / np.sqrt((apos**2 - h**2) * (apos**2 - k**2))
+
+    axellip = aellip * xhatp
+    ayellip = aellip * yhatp
+    azellip = aellip * zhatp
+
+    return axellip, ayellip, azellip
+
+
+
+def rmaddgrav(a1, a2):
+    ''' Subtracts additional gravitational acceleration due to default or crater/shape model
+    Sept 17, 2019 - in progress
+    Oct 4, 2019 - testing '''
+
+    ax1 = a1[0]
+    ay1 = a1[1]
+    az1 = a1[2]
+
+    ax2 = a2[0]
+    ay2 = a2[1]
+    az2 = a2[2]
+
+    # remove additional gravity
+    axnet = ax1 - ax2
+    aynet = ay1 - ay2
+    aznet = az1 - az2
+
+    return axnet, aynet, aznet
+
+
+
+def addnetgrav(sim, Mtarg, a1, b1, c1, Nparts, dt, omega, axdir, axtilt, binary=False):
+    ''' Add net gravitational acceleration to simulation
+    Sept 17, 2019 - in progress
+    Oct 4, 2019 - testing '''
+
+    asphere = spheregrav(sim, Mtarg, Nparts, binary)
+
+    aellip  = ellipgrav(sim, Mtarg, Nparts, a1, b1, c1, dt, omega, axdir, axtilt, binary)
+
+    axnet, aynet, aznet = rmaddgrav(aellip, asphere)
+
+
+    inds = np.linspace(0, Nparts-1, Nparts)
+
+    if binary == True:
+        gravbod = 1
+        bodies = np.delete(inds, gravbod, 0)
+    else:
+        gravbod = 0
+        bodies = np.delete(inds, gravbod, 0)
+
+    c = sim.particles[gravbod]
+
+    xp = np.asarray([sim.particles[int(i)].x for i in bodies]) - c.x
+    yp = np.asarray([sim.particles[int(i)].y for i in bodies]) - c.y
+    zp = np.asarray([sim.particles[int(i)].z for i in bodies]) - c.z
+
+    # Centripetal force due to rotation
+    dist = np.sqrt(xp**2 + yp**2)
+    arot = omega ** 2 * dist
+    rotxhat = xp / dist
+    rotyhat = yp / dist
+### Don't forget to tilt the xhat and yhat
+    axrot = arot * rotxhat
+    ayrot = arot * rotyhat
+
+    correction = 1
+    # add net acceleration to given accelerations
+    for i in bodies:
+        p = sim.particles[int(i)]
+
+        if binary == True:
+            if int(i) == 0:
+                correction = 0
+            else:
+                correction = 1
+        #print(correction)
+        p.ax += (axnet[int(i)-correction] )#+ axrot[int(i)-correction])
+        p.ay += (aynet[int(i)-correction] )#+ ayrot[int(i)-correction])
+        p.az += aznet[int(i)-correction]
+
+
+
+    #ax = np.asarray([sim.particles[int(i)].ax for i in bodies])
+    #ay = np.asarray([sim.particles[int(i)].ay for i in bodies])
+    #az = np.asarray([sim.particles[int(i)].az for i in bodies])
+
+
+    return sim
+
+#########################################################################
+
+
+
+
+
+# Do not use the below functions.
+
+
+
+def tiltrot(sim, per, Nplanets, Nparts, axtilt, axdir, M, a1, b1, c1, binary=False):
+
+    dt = sim.dt
+
+    omega = 360. / per
+
+    rot = omega * dt
+
+    if binary == True:
+        bodies = np.arange(0, Nplanets + Nparts)
+        exclude = [1]
+        bodyrange = np.delete(bodies, exclude)
+
+        x = np.asarray([sim.particles[int(j)].x for j in bodyrange])
+        y = np.asarray([sim.particles[int(j)].y for j in bodyrange])
+        z = np.asarray([sim.particles[int(j)].z for j in bodyrange])
+
+        cx = sim.particles[1].x
+        cy = sim.particles[1].y
+        cz = sim.particles[1].z
+
+
+    else:
+        bodyrange = np.arange(Nplanets, Nplanets + Nparts)
+
+        x = np.asarray([sim.particles[int(j)].x for j in bodyrange])
+        y = np.asarray([sim.particles[int(j)].y for j in bodyrange])
+        z = np.asarray([sim.particles[int(j)].z for j in bodyrange])
+
+        cx = sim.particles[0].x
+        cy = sim.particles[0].y
+        cz = sim.particles[0].z
+
+    x -= cx
+    y -= cy
+    z -= cz
+
+    xtilt = np.radians(axtilt) * np.sin(np.radians(axdir + 180))
+    ytilt = np.radians(axtilt) * np.cos(np.radians(axdir + 180))
+
+    xp = x*np.cos(rot)*np.cos(xtilt) \
+         + y*(np.sin(rot)*np.cos(ytilt)-np.cos(rot)*np.sin(xtilt)*np.sin(ytilt)) \
+         + z*(np.sin(rot)*np.cos(ytilt)+np.cos(rot)*np.sin(xtilt)*np.cos(ytilt))
+
+    yp = -x*np.sin(rot)*np.cos(xtilt) \
+         + y*(np.cos(rot)*np.cos(ytilt)+np.sin(rot)*np.sin(xtilt)*np.sin(ytilt)) \
+         + z*(np.sin(rot)*np.sin(ytilt)+np.cos(rot)*np.sin(xtilt)*np.cos(ytilt))
+
+    zp = -x*np.sin(xtilt) \
+         - y*np.cos(xtilt)*np.sin(ytilt) \
+         + z*np.cos(xtilt)*np.cos(ytilt)
+
+    # Locate lat/lon:
+    lon = np.degrees(np.arctan(yp / xp))
+    lat = np.degrees(np.sin(zp / np.sqrt(xp**2 + yp**2 + zp**2)))
+
+    # Point on the surface
+    # xsurf = aT * np.cos(np.radians(lon)) * np.cos(np.radians(lat))
+    # ysurf = bT * np.sin(np.radians(lon)) * np.cos(np.radians(lat))
+    # zsurf = cT * np.sin(np.radians(lat))
+
+    C1 = (a1 ** 2) / (b1 ** 2)
+    C2 = (a1 ** 2) / (c1 ** 2)
+
+    apos = np.sqrt(xp ** 2 + C1 * yp ** 2 + C2 * zp ** 2)
+
+    h = np.sqrt(a1**2 - b1**2)
+    k = np.sqrt(a1**2 - c1**2)
+
+    pot = (sim.G * M) / np.sqrt((apos**2 - h**2) * (apos**2 - k**2))
+
+    gx = -1*pot * (xp / apos)#np.sqrt(xp**2 + (a1 / b1)**2 * yp**2 + (a1 / c1) * zp**2)
+    gy = -1*pot * (yp / apos)#np.sqrt(xp**2 + (a1 / b1)**2 * yp**2 + (a1 / c1) * zp**2)
+    gz = -1*pot * (zp / apos)#np.sqrt(xp**2 + (a1 / b1)**2 * yp**2 + (a1 / c1) * zp**2)
+
+    #gx = sim.G * M * (xsurf / apos) * (1 / np.sqrt((apos ** 2 - h ** 2) * (apos ** 2 - k ** 2)))
+    #gy = sim.G * M * (ysurf / apos) * (1 / np.sqrt((apos ** 2 - h ** 2) * (apos ** 2 - k ** 2)))
+    #gz = sim.G * M * (zsurf / apos) * (1 / np.sqrt((apos ** 2 - h ** 2) * (apos ** 2 - k ** 2)))
+
+    gx += omega ** 2 * xp
+    gy += omega ** 2 * yp
+    #print out rotation phase
+
+
+    # Rotate grav vector back to global coordinates
+    gxtilt = np.radians(axtilt) * np.sin(np.radians(axdir))
+    gytilt = np.radians(axtilt) * np.cos(np.radians(axdir))
+
+    ggx = gx * np.cos(rot + 180.) * np.cos(gxtilt) \
+         + gy * (np.sin(rot + 180.) * np.cos(gytilt) - np.cos(rot + 180.) * np.sin(gxtilt) * np.sin(gytilt)) \
+         + gz * (np.sin(rot + 180.) * np.cos(gytilt) + np.cos(rot + 180.) * np.sin(gxtilt) * np.cos(gytilt))
+
+    ggy = -gx * np.sin(rot + 180.) * np.cos(gxtilt) \
+         + gy * (np.cos(rot + 180.) * np.cos(gytilt) + np.sin(rot + 180.) * np.sin(gxtilt) * np.sin(gytilt)) \
+         + gz * (np.sin(rot + 180.) * np.sin(gytilt) + np.cos(rot + 180.) * np.sin(gxtilt) * np.cos(gytilt))
+
+    ggz = -gx * np.sin(gxtilt) \
+         - gy * np.cos(gxtilt) * np.sin(gytilt) \
+         + gz * np.cos(gxtilt) * np.cos(gytilt)
+
+    #ax += ggx
+    #ay += ggy
+    #az += ggz
+    print('shapeggx', ggx.shape)
+    return ggx, ggy, ggz
+
+
+
+
 
 def globalvector(sim, tilt, gx, gy, gz, Nplanets, Nparts, binary=False):
     '''In progress
@@ -28,9 +342,9 @@ def globalvector(sim, tilt, gx, gy, gz, Nplanets, Nparts, binary=False):
 
 
     else:
-        x = np.asarray([sim.particles[int(j)].x for j in range(1, Nplanets + Nparts)])
-        y = np.asarray([sim.particles[int(j)].y for j in range(1, Nplanets + Nparts)])
-        z = np.asarray([sim.particles[int(j)].z for j in range(1, Nplanets + Nparts)])
+        x = np.asarray([sim.particles[int(j)].x for j in range(Nplanets, Nplanets + Nparts)])
+        y = np.asarray([sim.particles[int(j)].y for j in range(Nplanets, Nplanets + Nparts)])
+        z = np.asarray([sim.particles[int(j)].z for j in range(Nplanets, Nplanets + Nparts)])
 
         cx = sim.particles[0].x
         cy = sim.particles[0].y
@@ -50,6 +364,8 @@ def globalvector(sim, tilt, gx, gy, gz, Nplanets, Nparts, binary=False):
 
 
     # Define globally
+    # This is where things need to be fixed. The gravitational vectors relative to the target body will stay the same.
+    # Just need to put them back in the locations given in global coordinates
     ggx = gmag * np.cos(np.radians(phi)) * np.sin(np.radians(theta))
     ggy = gmag * np.cos(np.radians(phi)) * np.cos(np.radians(theta))
     ggz = gmag * np.sin(np.radians(phi))
@@ -57,39 +373,22 @@ def globalvector(sim, tilt, gx, gy, gz, Nplanets, Nparts, binary=False):
     return ggx, ggy, ggz
 
 
-def gravity(sim, M, Nplanets, Nparts, atarg, btarg, ctarg, omega, tilt, axdir, time, binary=False):
+def gravity(sim, M, Nplanets, Nparts, atarg, btarg, ctarg, omega, tilt, axdir, binary=False):
     '''In progress
 	Inputs gravitational acceleration vectors
 	Applies acceleration vectors to system objects'''
 
-    if binary == True:
-        bodies = np.arange(0, Nplanets + Nparts)
-        exclude = [1]
-        bodyrange = np.delete(bodies, exclude)
-
-        ax = np.asarray([sim.particles[int(j)].ax for j in bodyrange])
-        ay = np.asarray([sim.particles[int(j)].ay for j in bodyrange])
-        az = np.asarray([sim.particles[int(j)].az for j in bodyrange])
-
-    else:
-        ax = np.asarray([sim.particles[int(j)].ax for j in range(1, Nplanets + Nparts)])
-        ay = np.asarray([sim.particles[int(j)].ay for j in range(1, Nplanets + Nparts)])
-        az = np.asarray([sim.particles[int(j)].az for j in range(1, Nplanets + Nparts)])
-
-    gx, gy, gz = localvector(sim, M, Nplanets, Nparts, atarg, btarg, ctarg, omega, tilt, axdir, time, binary)
+    gx, gy, gz = localvector(sim, M, Nplanets, Nparts, atarg, btarg, ctarg, omega, tilt, axdir, binary)
 
     ggx, ggy, ggz = globalvector(sim, tilt, gx, gy, gz, Nplanets, Nparts, binary)
 
-    ax += ggx
-    ay += ggy
-    az += ggz
-
-    return sim
+    return ggx, ggy, ggz
 
 
 
 
-def localvector(sim, M, Nplanets, Nparts, atarg, btarg, ctarg, omega, tilt, axdir, time, binary=False):
+
+def localvector(sim, M, Nplanets, Nparts, atarg, btarg, ctarg, omega, tilt, axdir, binary=False):
     '''In progress
 	Inputs particle positions and ellipsoid axes.
 	Outputs gravitational acceleration vector felt by each particle.'''
@@ -111,9 +410,9 @@ def localvector(sim, M, Nplanets, Nparts, atarg, btarg, ctarg, omega, tilt, axdi
         cz = sim.particles[1].z
 
     else:
-        xp = np.asarray([sim.particles[int(j)].x for j in range(1, Nplanets + Nparts)])
-        yp = np.asarray([sim.particles[int(j)].y for j in range(1, Nplanets + Nparts)])
-        zp = np.asarray([sim.particles[int(j)].z for j in range(1, Nplanets + Nparts)])
+        xp = np.asarray([sim.particles[int(j)].x for j in range(Nplanets, Nplanets + Nparts)])
+        yp = np.asarray([sim.particles[int(j)].y for j in range(Nplanets, Nplanets + Nparts)])
+        zp = np.asarray([sim.particles[int(j)].z for j in range(Nplanets, Nplanets + Nparts)])
 
         cx = sim.particles[0].x
         cy = sim.particles[0].y
@@ -123,7 +422,7 @@ def localvector(sim, M, Nplanets, Nparts, atarg, btarg, ctarg, omega, tilt, axdi
     y = yp - cy
     z = zp - cz
 
-    lat = np.arctan(z / x)
+    lat = np.arctan(z / np.sqrt(x**2 + y**2))
     lon = np.arctan(y / x)
 
     x0 = atarg * np.cos(lat) * np.cos(lon)
@@ -132,8 +431,8 @@ def localvector(sim, M, Nplanets, Nparts, atarg, btarg, ctarg, omega, tilt, axdi
 
     dist = np.sqrt((x - x0) ** 2 + (y - y0) ** 2 + (z - z0) ** 2)
 
-    dx = dist * (np.sin(np.radians(tilt)) * np.cos(np.radians(axdir)) - np.cos(np.radians(omega * time)))
-    dy = dist * (np.sin(np.radians(tilt)) * np.sin(np.radians(axdir)) - np.sin(np.radians(omega * time)))
+    dx = dist * (np.sin(np.radians(tilt)) * np.cos(np.radians(axdir)) )#- np.cos(np.radians(omega * time)))
+    dy = dist * (np.sin(np.radians(tilt)) * np.sin(np.radians(axdir)) )#- np.sin(np.radians(omega * time)))
     dz = dist * (np.cos(np.radians(tilt)))
 
     xloc = x + dx
@@ -155,6 +454,8 @@ def localvector(sim, M, Nplanets, Nparts, atarg, btarg, ctarg, omega, tilt, axdi
 
     return gx, gy, gz
 
+
+# Do not use the above functions.
 
 
 
@@ -236,7 +537,7 @@ def partrad(r, counts):
             rad.append(r[i])
 
     radii = np.asarray(rad)
-    print (len(radii))
+   # print (len(radii))
     return radii
 
 
@@ -273,7 +574,7 @@ def sizedist(Nparts, Res, rmin, rmax, p):
 
 ### Radiation Pressure ###
 def poyntingrobertson(sim, r, a, rho, L=3.828e26, msun=2e30):
-    ''' ***This is ok!***
+    ''' ***Do not use this***
 	Calculates radiation pressure on particle sizes
 
 	Parameters
@@ -290,7 +591,7 @@ def poyntingrobertson(sim, r, a, rho, L=3.828e26, msun=2e30):
 	acc : array; radiation pressure acceleration for each particle size
 	'''
 
-    km = 1e3  # m in km
+    km   = 1e3  # m in km
     days = 86400.  # seconds in day
 
     G = sim.G  # 6.67e-11 * km**3 * days**2
@@ -306,7 +607,7 @@ def poyntingrobertson(sim, r, a, rho, L=3.828e26, msun=2e30):
     return acc
 
 def radforce(sim, Nparts, Nplanets, r, rho, L=3.828e26, msun=2e30):
-    ''' ***This is ok!***
+    ''' ***Do not use!***
 	Calculates Poynting-Robertson Drag on particle sizes
 
 	Parameters
@@ -340,7 +641,7 @@ def radforce(sim, Nparts, Nplanets, r, rho, L=3.828e26, msun=2e30):
 
 
 
-def solarradpress(sim, Nplanets, type2=False, rho=2000):
+def solarradpress(sim, Nplanets, possun, rho=2e3):
     '''USE THIS EQUATION'''
 
     SBconst = 5.67e-8     # Stephen-Boltzmann Constant
@@ -357,28 +658,40 @@ def solarradpress(sim, Nplanets, type2=False, rho=2000):
     ay = []
     az = []
 
-    if type2 == True:
-        sunind = 0
-    else:
-        sunind = Nplanets-1
-
+    sunind = Nplanets-1
 
     sun = sim.particles[int(sunind)]
     sunx = sun.x
     suny = sun.y
     sunz = sun.z
 
+
     for p in sim.particles[Nplanets:]:
-        dist = np.sqrt((p.x-sunx)**2 + (p.y-suny)**2 + (p.z-sunz)**2)
+        dist = np.sqrt((p.x-possun[0])**2 + (p.y-possun[1])**2 + (p.z-possun[2])**2)
+
+        Ksc = 1.366e3 * 1.496e11**2
+
+        amean = (3 * Ksc) / (4 * np.pi * c * rho * dist ** 2 * p.r)
+
+        #I = 3.8e26 / (4 * np.pi * dist ** 2)
+        #p = (2 * I) / c
+        #F = p * np.pi * p.r ** 2
+
+        #amean = (3 * 3.8e26) / (4 * np.pi * c * rho * dist ** 2 * p.r)
+      #  print(amean)
+        # *** Note: Make sure to finalize the equation for solar constant at varying radii.
+        # It's some form of inverse square law.
+        # integrate to solve. Use (1AU, solar constant) as the point to solve the constant
+
 
         #Fs = SBconst * Tsun**4 * (Rsun**2 / dist**2)
 
-        beta = (3 * eps * tsi * dist**2) / (4 * c * G * Msun * rho * p.r)
-        amean = ((G * Msun) / (dist**2)) * (1 - beta)
+        #beta = (3 * eps * tsi * dist**2) / (4 * c * G * Msun * rho * p.r)
+        #amean = .1 * ((G * Msun) / (dist**2)) * (beta)
         #amean = ((G * Msun) / (dist**2)) - (3 * eps * tsi) / (4 * c * rho * p.r)
-        ax.append(amean * ((p.x-sunx) / dist))
-        ay.append(amean * ((p.y-suny) / dist))
-        az.append(amean * ((p.z-sunz) / dist))
+        ax.append(amean * ((p.x-possun[0]) / dist))
+        ay.append(amean * ((p.y-possun[1]) / dist))
+        az.append(amean * ((p.z-possun[2]) / dist))
 
     acc = (np.asarray(ax), np.asarray(ay), np.asarray(az))
 
