@@ -32,3 +32,9 @@ username:~/project_directory$ python plotejecta2.py
 
 We recommend plotting the data files in the same simulation directory in which the simulation was run in order to keep track of which plots are associated with which simulation. Later, after the plots are made, if the user wishes to save the plots in a separate directory, they can easily copy the plots to a separate directory (preferably named to reflect to which simulation those plots pertain).
 
+
+# Function Descriptions: basicsolarsystem1015.py
+
+
+
+# Function Descriptions: additionaleffects.py
