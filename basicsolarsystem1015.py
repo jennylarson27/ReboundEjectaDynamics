@@ -73,7 +73,7 @@ def datasave(sim, fname, Nplanets, Nparts):
 
 
 
-def ejectaconepos(aT, bT, cT, h, lat, lon, beta, tilt, axdir, Nparts, tpos, diskwidth=10.):
+def ejectaconepos(aT, bT, cT, h, lat, lon, beta, tilt, axdir, Nparts, tpos, diskwidth=5):
 	'''Setting ejecta cone position'''
 
 	# cone base
@@ -105,7 +105,7 @@ def ejectaconepos(aT, bT, cT, h, lat, lon, beta, tilt, axdir, Nparts, tpos, disk
 
 
 	# disk radius
-	rdisk  = h * np.tan(np.radians(beta) + (diskwidth/2.))
+	rdisk  = h * np.tan(np.radians((beta) + (diskwidth/2.)))
 	rinner = h * np.tan(np.radians((beta) - (diskwidth/2.)))
 
 	r = (rdisk - rinner) * np.random.random_sample(Nparts) + rinner
