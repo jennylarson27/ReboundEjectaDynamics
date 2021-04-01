@@ -1,6 +1,6 @@
 # Debris Cloud Dynamics Rebound Package
 
-This package allows for the simulation of debris clouds using N-body integrator Rebound. For specifics on the construction of this package, please reference Larson and Sarid (2019). This document should act as a manual for using this package. 
+This package allows for the simulation of debris clouds using N-body integrator Rebound. For specifics on the construction of this package, please reference Larson and Sarid (2021). This document should act as a manual for using this package. 
 
 Necessary files/modules necessary to use package: 
 
