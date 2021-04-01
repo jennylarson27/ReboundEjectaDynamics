@@ -8,9 +8,14 @@ import additionaleffects as ae
 import functools
 import os
 
+
 from bodyparams import *
 from integratorparams import *
 
+
+
+global sim
+sim = rebound.Simulation()
 
 
 # add particles
@@ -25,17 +30,27 @@ def conesetup(*rest):
 	cvel = (0, 0, 0)
 
 
-	pos, x1, y1, z1, opang, thetaprime, r, s = bss.ejectaconepos(aT,
-															   bT,
-															   cT,
-															   hpart,
-															   lat,
-															   lon,
-															   beta,
-															   axtiltT,
-															   axdirT,
-															   Nparts,
-															   cpos,
+	pos, x1, y1, z1, thetaprime, r, s, pos0p, vpos = bss.ejectaconepos(mex, aT,
+																			  bT,
+																			  cT,
+																			  hpart,
+																			  lat,
+																			  lon,
+																			  beta,
+																			  axtiltT,
+																			  axdirT,
+																			  Nparts,
+																			  cpos,
+																			  mtarg,
+																			  rtarg,
+																			  vi,
+																			  a,
+																			  mi,
+																			  rhoT,
+																			  rhoi,
+																			  mu,
+																			  K1,
+																			  Ybar=0.,
 															   )
 
 
@@ -46,39 +61,53 @@ def conesetup(*rest):
 	if sizedist == True:
 
 		# set up size distribution
-		r, counts, N = ae.sizedist(Nparts,
+		rsize, counts, N = ae.sizedist(Nparts,
 								   Res,
 								   rmin,
 								   rmax,
 								   p,
 								   )
 
-		radii = ae.partrad(r,
+		radii = ae.partrad(rsize,
 						   counts,
 						   )
 
 
-	vpart = bss.veldist(rtarg, pos, vinit, mtarg, vi=6.)
+	vpart = bss.veldist(sim, r, mtarg, rtarg, mex, mu, rhoT, Cvps, Ctg, Ybar)     #sim, r, mtarg, rtarg, vi, a, mi, rhoT, rhoi, mu, K1, Cvps=0., Ctg=0.8, Ybar=0.)
+	print('vel=', vpart)
 	#vpart = np.full(Nparts, vinit)
 
-	vel = bss.ejectaconevel(opang,
-							thetaprime,
-							lat,
-							lon,
-							pos,
+	vel = bss.ejectaconevel(vpos,
+							pos0p,
 							vpart,
-							cvel,
-							axtiltT,
-							axdirT,
-							dt,
-							perT,
-							rotation
+							#vpos
+							#thetaprime,
+							#beta
+
+		#opang,
+		#					thetaprime,
+		#					lat,
+		#					lon,
+		#					pos,
+		#					vpart,
+		#					cvel,
+		#					axtiltT,
+		#					axdirT,
+		#					dt,
+		#					perT,
+		#					rotation
 							)
 
-	vel = (vel[0], vel[1], vel[2])
+	if rotation == True:
+		vxrot, vyrot, vzrot = ae.rotvel(sim, perT, lat, pos, axtiltT, axdirB)
+		vel = (vel[0] + vxrot, vel[1] + vyrot, vel[2] + vzrot)
+
+	elif rotation == False:
+		vel = (vel[0], vel[1], vel[2])
+
 	velmag = np.sqrt(vel[0]**2 + vel[1]**2 + vel[2]**2)
 
-	print(np.min(velmag), np.max(velmag))
+	#print(np.min(velmag), np.max(velmag))
 
 	if sizedist == True:
 		return pos, vel, Nparts, radii
@@ -117,13 +146,6 @@ def type1radpress(*rest):
 
 ### Run all the functions ###
 
-if sizedist == True:
-	pos, vel, Nparts, radii = conesetup()
-
-elif sizedist == False:
-	pos, vel, Nparts = conesetup()
-
-
 
 
 ### For running less particles ###
@@ -144,20 +166,21 @@ def sim_setup(*rest):
 	global axtiltT
 	global axdirT
 
-	sim = rebound.Simulation()
+	#sim = rebound.Simulation()
 	sim.units = (timeunits, dist, mass)
 
-	if rotation == True:
-		sim.add(x=0,
+	if ellipsoid == True:
+		sim.add(m=mtarg, r=aT, x=0,
 				y=0,
 				z=0,
 				vx=0,
 				vy=0,
 				vz=0,
+				hash="target"
 				)
 	else:
 		sim.add(m=mtarg,
-				r=rtarg,
+				r=aT,
 				x=0,
 				y=0,
 				z=0,
@@ -169,19 +192,23 @@ def sim_setup(*rest):
 	Nplanets = 1
 
 	if binary == True:
-		if rotation == True:
-			sim.add(a=abin,
-					e=ebin,
-					inc=ibin,
-					primary=sim.particles[0],
-					)
-		else:
-			sim.add(r=rbin,
+		if ellipsoid == True:
+			sim.add(r=aB,
 					m=mbin,
 					a=abin,
 					e=ebin,
 					inc=ibin,
 					primary=sim.particles[0],
+					hash='bin'
+					)
+		else:
+			sim.add(r=aB,
+					m=mbin,
+					a=abin,
+					e=ebin,
+					inc=ibin,
+					primary=sim.particles[0],
+					hash='bin'
 					)
 		Nplanets += 1
 		#sim.remove(1)
@@ -253,7 +280,7 @@ def sim_setup(*rest):
 
 
 	# Update gravitational potentials
-	if rotation == True:
+	if ellipsoid == True:
 
 
 		#ggx, ggy, ggz = ae.gravity(sim, mtarg, Nplanets, Nparts, aT, bT, cT, perT, axrotT, axdirT, binary=False)
@@ -303,11 +330,12 @@ def sim_setup(*rest):
 
 					dt = sim.dt
 
-					omega = 360. / per
+					omega = 360. / perT
 
 					rot = omega * dt
 
-					sim = ae.addnetgrav(sim, mtarg, a1, b1, c1, Nparts, dt, omega, axdir, axtilt, binary)
+					sim = ae.addnetgrav(sim, mtarg, a1, b1, c1, Nplanets, Nparts, dt, omega, timestep, axdir, axtilt, binary)
+
 
 
 				sim.additional_forces = ellipsoidgrav
@@ -324,7 +352,7 @@ def sim_setup(*rest):
 			ggx, ggy, ggz = ae.gravity(sim, mbin, Nplanets, Nparts, aB, bB, cB, omegaB, axtiltB, axdirB,
 									   binary=True)
 
-			sim.additional_forces = ae.ellipsoidgrav
+			#sim.additional_forces = ellipsoidgrav
 
 	return sim
 
@@ -348,6 +376,9 @@ def sim_loop(time, *rest):
 	global landed
 	global binland
 	global rminds
+	global timestep
+	global remaining
+
 
 	#orb = sim.particles[1].calculate_orbit(primary=sim.particles[0])
 	#print('target =', np.sqrt(sim.particles[4].x**2 + sim.particles[4].y**2 + sim.particles[4].z**2))
@@ -357,57 +388,65 @@ def sim_loop(time, *rest):
 
 
 	sim.integrate(time)
-	#timestep += 1
+	timestep += 1
+
 
 	# Remove and count particles
-	if rotation == True:
-		sim, Nparts, rminds, landed, landx, landy, landz, simorigin = bss.rmlandedparts(sim,
-		 																				Nplanets,
-		 																				Nparts,
-		 																				aT,
-		 																				bT,
-		 																				cT,
-		 																				landed,
-		 																				rminds,
-																						axdirT,
-																						axtiltT,
-																						360. / perT,
-		 																				)
-	else:
-		sim, Nparts, rminds, landed, landx, landy, landz, simorigin = bss.rmlandedparts(sim,
-	 																					Nplanets,
-	 																					Nparts,
-	 																					aT,
-	 																					bT,
-	 																					cT,
-	 																					landed,
-	 																					rminds,
-	 																					)
+
+	# if ellipsoid == True:
+	# 	sim, Nparts, rminds, landed, landx, landy, landz, simorigin = bss.rmlandedparts(sim,
+	# 	 																				Nparts,
+	# 	 																				aT,
+	# 	 																				bT,
+	# 	 																				cT,
+	# 	 																				landed,
+	# 	 																				rminds,
+	# 																					binary,
+	# 																					rbin,
+	# 																					axdirT,
+	# 																					axtiltT,
+	# 																					360. / perT,
+	# 	 																				)
+	#else:
+
+	#sim, landed, Nparts, rminds = bss.rmparticles(sim, Nparts, landed, inttime, aT, aB, condit, rminds)
+
+	sim, landed, Nparts = bss.rmland(sim,
+ 	 								 Nparts,
+ 	 								 aT,
+ 	 								 bT,
+ 	 								 cT,
+ 	 								 landed,
+ 	 								 inttime,
+ 	 								 condit,
+ 	 								 axdirT,
+ 	 								 axtiltT,
+ 	 								 perT,
+ 	 								 timestep,
+ 	 								 aB,
+ 	 								 rotation,
+ 	 						   )
+
+		# sim, Nparts, rminds, landed, landx, landy, landz, simorigin = bss.rmlandedparts(sim,
+	 	# 																				Nparts,
+	 	# 																				aT,
+	 	# 																				bT,
+	 	# 																				cT,
+	 	# 																				landed,
+	 	# 																				rminds,
+		# 																				binary,
+		# 																				rbin,
+	 	# 																				)
 
 		#print(np.sqrt(np.asarray(landx) ** 2 + np.asarray(landy) ** 2 + np.asarray(landz) ** 2))
 
-	if binary == True:
-		if rotation == True:
-			sim, Nparts, rminds, binland, binx, biny, binz = bss.rmbinparts(sim,
-																			Nplanets,
-																			Nparts,
-																			aB,
-																			bB,
-																			cB,
-																			binland,
-																			rminds,
-																			)
-
-		else:
-			sim, Nparts, rminds, binland, binx, biny, binz = bss.rmbinparts(sim,
-																			Nplanets,
-																			Nparts,
-																			aB,
-																			bB,
-																			cB,
-																			binland,
-																			rminds,
-																			)
+	# if binary == True:
+	# 	sim, Nparts, rminds, binland, binx, biny, binz = bss.rmbinparts(sim,
+	# 																	rbin,
+	# 																	Nparts,
+	# 																	binland,
+	# 																	rminds,
+	# 																	)
 
 	print ('Nparts =', Nparts)
 
@@ -425,10 +464,10 @@ def sim_loop(time, *rest):
 
 	# SAVE DATA
 	bss.datasave(sim, 'particledata' + str(inttime) + condit + '.txt', Nplanets, Nparts)
-	bss.rmdatasave(landx, landy, landz, 'rmlandpartdata' + str(inttime) + condit + '.txt')
 
-	if binary == True:
-		bss.rmdatasave(binx, biny, binz, 'rmbinpartdata' + str(inttime) + condit + '.txt')
+
+	#if binary == True:
+	#	bss.rmdatasave(binx, biny, binz, 'rmbinpartdata' + str(inttime) + condit + '.txt')
 
 	inttime += 1
 	print (' ')
@@ -436,8 +475,9 @@ def sim_loop(time, *rest):
 
 
 ### Main Run ###
-#timestep = 1
-sim_setup()
+
+timestep = 1
+sim = sim_setup()
 
 omegaT = 360. / perT
 omegaB = 360. / perB
@@ -446,9 +486,12 @@ inttime = 0
 N_out = (1 / dt) * tmax
 times = np.linspace(0, tmax, N_out)
 #sim.move_to_com()
+landed = 0
 
-p = sim.particles[5]
-print('aellip =', np.sqrt(p.ax**2 + p.ay**2 + p.az**2))
+rminds = []
+
+
+#print('aellip =', np.sqrt(p.ax**2 + p.ay**2 + p.az**2))
 for i, time in enumerate(times):
 	sim_loop(time)
 	#print('mtarg =', mtarg)
