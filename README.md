@@ -32,16 +32,48 @@ We recommend plotting the data files in the same directory in which the simulati
 This module contains functions to regulate the set-up and functions of running a basic simulation. 
 
 **addpartcart** (sim, pos, vel, Nparts, [radmass, rho])
+Adds particles to the simulation.
+
+Parameters:
+- sim: _Rebound_ simulation
+- pos: (_tuple_) Particle position vectors
+- vel: (_tuple_) Particle velocity vectors
+- Nparts: (_int_) Number of particles in the simulation
+- radmass [optional]: (_array_) Radii of particles
+- rho [optional]: (_float_) Density of particles
 
 Returns:
-- sim
+- sim: _Rebound_ simulation
 
 **datasave** (sim, fname, Nplanets, Nparts)
+Saves particle position and velocity data to .txt file.
+
+Parameters:
+- sim: _Rebound_ simulation
+- fname: (_str_) Name of file where data will be saved
+- Nplanets: (_int_) Number of non-particle objects in the system. Set value to 1 if the asteroid system does not contain a binary. Set value to 2 if there is a binary
+- Nparts: (_int_) Number of particles in the system
 
 Returns:
-nothing
+Saves file to current directory
 
 **ejectaconpos** (mex, aT, bT, cT, h, lat, lon, beta, tilt, axdir, Nparts, tpos, mtarg, rtarg, vi, a, mi, rhoT, rhoI, mu, K1, Ybar=0., shapemodel=False, vertfile=None)
+
+Parameters:
+- mex: (_float_) The total mass of material ejected from the impact site. Calculated based on the size of the resulting crater
+- aT: (_float_) Semi-major axis of the target body
+- bT: (_float_) First semi-minor axis of the target body
+- cT: (_float_) Second semi-minor axis of the target body
+- h: (_float_) Initial height of particles off the surface
+- lat: (_float_) Latitude of impact location
+- lon: (_float_) Longitude of impact location
+- beta: (_float_) Angle of ejection from the vertical
+- tilt: (_float_) Angle from the vertical at which the target body's axis of rotation is rotated
+- axdir: (_float_) Direction in the system that the axis of rotation is tilted
+- Nparts: (_float_) Number of particles in the system
+- tpos: (_tuple_) Position vector of the target body
+- mtarg: (_float_) Mass of the target body
+- 
 
 Returns:
 - pos
