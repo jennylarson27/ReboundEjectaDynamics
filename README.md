@@ -32,6 +32,7 @@ We recommend plotting the data files in the same directory in which the simulati
 This module contains functions to regulate the set-up and functions of running a basic simulation. 
 
 **addpartcart** (sim, pos, vel, Nparts, [radmass, rho])
+
 Adds particles to the simulation.
 
 Parameters:
@@ -46,6 +47,7 @@ Returns:
 - sim: _Rebound_ simulation
 
 **datasave** (sim, fname, Nplanets, Nparts)
+
 Saves particle position and velocity data to .txt file.
 
 Parameters:
@@ -58,6 +60,8 @@ Returns:
 Saves file to current directory
 
 **ejectaconpos** (mex, aT, bT, cT, h, lat, lon, beta, Nparts, tpos, mtarg, rhoT, shapemodel=False, vertfile=None)
+
+Determines initial positions of particles in an ejecta cone above the surface.
 
 Parameters:
 - mex: (_float_) The total mass of material ejected from the impact site. Calculated based on the size of the resulting crater
@@ -87,6 +91,7 @@ Returns:
 - vpos: (_tuple_) x-, y-, and z- components of the velocity unit vectors for particles
 
 **ejectaconevel** (vpos, v0)
+
 Calculates the initial velocity vector components of the particles
 
 Parameters:
@@ -97,6 +102,7 @@ Returns:
 - vel: (_tuple_) x-, y-, and z- components of initial velocity vectors for particles
 
 **rmdatasave** (rmx, rmy, rmz, fname)
+
 Saves positions of removed particles. Particles that are removed are ones that have landed on the surface.
 
 Parameters:
@@ -109,6 +115,7 @@ Returns:
 Saves .txt file to current directory
 
 **rmland** (sim, Nparts, atarg, btarg, ctarg, landed, inttime, condit, axdir, axtilt, per, timestep, [abin, rotation, shapemodel, vertfile])
+
 Removes particles that have landed on the surface of the target body and any potential binary components.
 
 Parameters:
@@ -136,6 +143,7 @@ Returns:
 
 
 **rotmatrix3d** (x, y, z, apha, phi, theta)
+
 Rotates 3D array to produce a new 3D array
 
 Parameters:
@@ -152,6 +160,7 @@ Returns:
 - zp: (_array_) z-component of rotated vector
 
 **veldist** (sim, r, mtarg, rtarg, mex, mu, rhoT, [Cvps, Ctg, Ybar])
+
 Calculates a particle velocity distribution based on scaling relations by Richardson (2011).
 
 Parameters:
@@ -177,6 +186,7 @@ This module contains functions pertaining to any additional effects necessary fo
 _**Ellipsoidal Gravitational Potential**_
 
 **addnetgrav** (sim, Mtarg, a1, b1, c1, Nplanets, Nparts, timestep, axdir, axtilt, [binary, rotation])
+
 Adds ellipsoidal gravitational potential and subtracts the built-in spherical gravitational potential.
 
 Parameters:
@@ -195,6 +205,7 @@ Returns:
 - sim: _Rebound_ simulation
 
 **ellipgrav** (sim, surfpos, Mtarg, a1, b1, c1)
+
 Calculates the acceleration due to a gravity field around an ellipsoidal body.
 
 Parameters:
@@ -211,6 +222,7 @@ Returns:
 - azellip: (_array_) z-component of the acceleration felt by particles due to the ellipsoidal gravity field
 
 **rmaddgrav** (a1, a2)
+
 Calculates a1-a2. This is the net acceleration experienced by a particle around a body. This function is primarily used to subtract away the default spherical gravitational acceleration provided by _Rebound_ and to replace it with the ellipsoidal gravitational acceleration.
 
 Parameters:
@@ -227,6 +239,7 @@ Returns:
 _**Shape Model Gravitational Potential**_
 
 **shapemass** (vert, facet, M, [layers])
+
 Calculates the mass distribution within a shape model in order to calculate a gravity field based on the observed shape model.
 
 Parameters:
@@ -244,6 +257,7 @@ Returns:
 _**Rotation of Primary Component**_
 
 **rotpos** (sim, Nplanets, Nparts, axtilt, axdir, timestep, [per])
+
 Calculates the positions of particles above the rotating body.
 
 Parameters:
@@ -261,6 +275,7 @@ Returns:
 - zp: (_array_) z-coordinate of the particle locationa post-rotation
 
 **rotvel** (sim, per, lat, pos, axtilt, axdir)
+
 Calculates the rotational velocity that is added to the initial particle ejection velocity
 
 Parameters:
@@ -281,6 +296,7 @@ Returns:
 _**Binary Component**_
 
 **binary** (sim, m, r, a, [e, i, periap, ascnode, f])
+
 Adds a secondary component to the system
 
 Parameters:
@@ -301,6 +317,7 @@ Returns:
 _**Size Distribution**_
 
 **partmass** (radii, rho)
+
 Calculates the mass of a particle based on the density and radius.
 
 Parameters:
@@ -311,6 +328,7 @@ Returns:
 - mass: (_array_) Mass of ejected particles
 
 **partrad** (r, counts)
+
 Creates array of particle radii.
 
 Parameters:
@@ -321,6 +339,7 @@ Returns:
 - radii: (_array_) Radii for each particle
 
 **sizedist** (Nparts, Res, rmin, rmax, p)
+
 Calculates a size distribution of radii to be assigned to particles.
 
 Parameters:
@@ -339,6 +358,7 @@ Returns:
 _**Radiation Pressure**_
 
 **shadow** (sim, possun, Nplanets, Nparts, aview, bview, [rho])
+
 Determines when particles are in the shadow of the body and adds a temporary acceleration to counteract the solar radiation pressure acceleration.
 
 Parameters:
@@ -354,6 +374,7 @@ Returns:
 - accel: (_tuple_) Cartesian vector components (x, y, z) of the acceleration caused by radiation pressure including particles within the shadow (acceleration is zero for shadowed particles)
 
 **solarradpress** (sim, Nplanets, possun, [rho])
+
 Calculates the acceleration experienced by the particles due to radiation pressure from the sun.
 
 Parameters:
