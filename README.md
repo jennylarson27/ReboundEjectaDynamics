@@ -194,88 +194,173 @@ Parameters:
 Returns:
 - sim: _Rebound_ simulation
 
-**ellipgrav** (sim, surfpos, Mtarg, a1, b1, c1, [binary])
+**ellipgrav** (sim, surfpos, Mtarg, a1, b1, c1)
+Calculates the acceleration due to a gravity field around an ellipsoidal body.
+
+Parameters:
+- sim: _Rebound_ simulation
+- surfpos: (_tuple_) Cartesian coordinates (x, y, z) of the particle positions relative to the surface of the body
+- Mtarg: (_float_) Mass of the body for which gravity is being calculated
+- a1: (_float_) Semi-major axis of the body for which gravity is being calculated
+- b1: (_float_) First semi-minor axis of the body for which gravity is being calculated
+- c1: (_float_) Second semi-minor axis of the body for which gravity is being calculated
 
 Returns:
-- axellip
-- ayellip
-- azellip
+- axellip: (_array_) x-component of the acceleration felt by particles due to the ellipsoidal gravity field
+- ayellip: (_array_) y-component of the acceleration felt by particles due to the ellipsoidal gravity field
+- azellip: (_array_) z-component of the acceleration felt by particles due to the ellipsoidal gravity field
 
 **rmaddgrav** (a1, a2)
+Calculates a1-a2. This is the net acceleration experienced by a particle around a body. This function is primarily used to subtract away the default spherical gravitational acceleration provided by _Rebound_ and to replace it with the ellipsoidal gravitational acceleration.
+
+Parameters:
+- a1: (_tuple_) Cartesian coordinates (x, y, z) of the acceleration to be added (typically the ellipsoidal gravitational acceleration)
+- a2: (_tuple_) Cartesian coordinates (x, y, z) of the acceleration to be subtracted (typically the spherical gravitational acceleration)
 
 Returns:
-- axnet
-- aynet
-- aznet
+- axnet: (_array_) x-component of the net gravitational acceleration to be applied to each particle
+- aynet: (_array_) y-component of the net gravitational acceleration to be applied to each particle
+- aznet: (_array_) z-component of the net gravitational acceleration to be applied to each particle
 
 
 
 _**Shape Model Gravitational Potential**_
 
 **shapemass** (vert, facet, M, [layers])
+Calculates the mass distribution within a shape model in order to calculate a gravity field based on the observed shape model.
+
+Parameters:
+- vert: (_string_) File name for the vertex locations that make up the body
+- facet: (_string_) File name for the facet locations that make up the body
 
 Returns:
-- Mi
-- Xg
-- Yg
-- Zg
+- Mi: (_array_) Mass of each volume making up the body shape
+- Xg: (_array_) x-component of volume locations in the shape model
+- Yg: (_array_) y-component of volume locations in the shape model
+- Zg: (_array_) z-component of volume locations in the shape model
 
 
 
 _**Rotation of Primary Component**_
 
 **rotpos** (sim, Nplanets, Nparts, axtilt, axdir, timestep, [per])
+Calculates the positions of particles above the rotating body.
+
+Parameters:
+- sim: _Rebound_ simulation
+- Nplanets: (_float_) Number of non-particle bodies in the simulation
+- Nparts: (_float_) Number of particles in the simulation
+- axtilt: (_float_) Angle that the axis of rotation tilts from the vertical
+- axdir: (_float_) Direction the axis of rotation points away from the vertcal
+- timestep: (_float_) Current time step in the simulation
+- per [optional]: (_float_) Rotation period
 
 Returns:
-- xp
-- yp
-- zp
+- xp: (_array_) x-coordinate of the particle locations post-rotation
+- yp: (_array_) y-coordinate of the particle locations post-rotation
+- zp: (_array_) z-coordinate of the particle locationa post-rotation
 
 **rotvel** (sim, per, lat, pos, axtilt, axdir)
+Calculates the rotational velocity that is added to the initial particle ejection velocity
+
+Parameters:
+- sim: _Rebound_ simulation
+- per: (_float_) Rotation period
+- lat: (_array_) Initial particle latitude
+- pos: (_tuple_) Cartesian coordinates (x, y, and z) of the initial particle positions
+- axtilt: (_float_) Angle that the axis of rotation tilts away from the vertical
+- axdir: (_float_) Direction the axis of rotation points away from the vertical
 
 Returns:
-- vxrot
-- vyrot
-- vzrot
+- vxrot: (_array_) x-component of the rotational velocity added to the initial particle velocities
+- vyrot: (_array_) y-component of the rotational velocity added to the initial particle velocities
+- vzrot: (_array_) z-component of the rotational velocity added to the initial particle velocities
 
 
 
 _**Binary Component**_
 
 **binary** (sim, m, r, a, [e, i, periap, ascnode, f])
+Adds a secondary component to the system
+
+Parameters:
+- sim: _Rebound_ simulation
+- m: (_float_) Mass of secondary body
+- r: (_float_) Radius of the secondary
+- a: (_float_) Distance of the secondary from the primary
+- e [optional]: (_float_) Default is 0. Eccentricity of the secondary body
+- i [optional]: ((_float_) Default is 0. Inclination of the secondary body
+- periap [optional]: (_float_) Default is 0. Argument of periapse of the secondary body
+- ascnode [optional]: (_float_) Default is 0. Ascending node of the secondary body
+- f [optional]: (_float_) Default is 0. True anomaly of the secondary body
 
 Returns:
-- sim
+- sim: _Rebound_ simulation
 
 
 _**Size Distribution**_
 
 **partmass** (radii, rho)
+Calculates the mass of a particle based on the density and radius.
+
+Parameters:
+- radii: (_array_) Radii of the particles in the simulation
+- rho: (_float_) Density of ejected particles
 
 Returns:
-- mass
+- mass: (_array_) Mass of ejected particles
 
 **partrad** (r, counts)
+Creates array of particle radii.
+
+Parameters:
+- r: (_array_) Array of possible radius values
+- counts: (_array_) Number particles assigned to each radius value
 
 Returns:
-- radii
+- radii: (_array_) Radii for each particle
 
 **sizedist** (Nparts, Res, rmin, rmax, p)
+Calculates a size distribution of radii to be assigned to particles.
+
+Parameters:
+- Nparts: (_float_) Number of particles
+- Res: (_int_) Resolution of size distribution. The larger this number is, the more unique radii will be produced. This should be less than the number of particles. If Res=Nparts, each particle will have a unique radius. It is recommended to select a value smaller than the number of particles.
+- rmin: (_float_) Minimum particle radius
+- rmax: (_float_) Maximum particle radius
+- p: (_float_) Power of the power law distribution
 
 Returns:
-- r
-- counts
-- N
+- r: (_array_) Possible radius values
+- counts: (_array_) Exact number of particles with each possible radius value (Array must have the same shape as r)
+- N: (_float_) Rounded number of particles with each possible radius value.
 
 
 _**Radiation Pressure**_
 
 **shadow** (sim, possun, Nplanets, Nparts, aview, bview, [rho])
+Determines when particles are in the shadow of the body and adds a temporary acceleration to counteract the solar radiation pressure acceleration.
+
+Parameters:
+- sim: _Rebound_ simulation
+- possun: (_tuple_) Cartesian coordinates (x, y, z) of the sun's position relative to the target body
+- Nplanets: (_float_) Number of non-particle bodies in the system
+- Nparts: (_float_) Number of particles in the system
+- aview: (_float_) Semi-major axis of the target body
+- bview: (_float_) First semi-minor axis of the target body
+- rho [optional]: Density of the particles. Default is 2e3 kg/m^3.
 
 Returns:
-- accel
+- accel: (_tuple_) Cartesian vector components (x, y, z) of the acceleration caused by radiation pressure including particles within the shadow (acceleration is zero for shadowed particles)
 
 **solarradpress** (sim, Nplanets, possun, [rho])
+Calculates the acceleration experienced by the particles due to radiation pressure from the sun.
+
+Parameters:
+- sim: _Rebound_ simulation
+- Nplanets: (_float_) Number of non-particle bodies in the system
+- possun: (_tuple_) Cartesian coordinates (x, y, z) of the sun's position relative to the target body
+- rho [optional]: (_float_) The density of the particles. Default is 2e3 kg/m^3.
 
 Returns:
-- acc
+- acc: (_tuple_) Cartesian vector components (x, y, z) of the acceleration caused by radiation pressure
