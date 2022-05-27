@@ -7,12 +7,12 @@ dist      = 'm'
 mass      = 'kg'
 
 # additional effects
-radpress = False       # True if using radiation pressure, else False
+radpress = True       # True if using radiation pressure, else False
 
 motiontype = 'Helio'    # Choose either 'Bary' for barycentric motion or 'Helio' for heliocentric motion
 
-dt   = 15.#/86400.            # time step (pick something smaller than a quarter of the smallest orbital period)
-tmax = dt * 2e3             # maximum time to which we integrate
+dt   = 30.#/86400.            # time step (pick something smaller than a quarter of the smallest orbital period)
+tmax = dt * 1.5e4             # maximum time to which we integrate
 
 outerlim = 1.5e33
 
@@ -22,7 +22,7 @@ lmax = 2
 integrator = 'ias15'   # Pick integrator to use (see REBOUND documentation about available integrators)
 
 # plotting conditions
-condit = '-test-'+str(int(Nparts))   # special conditions of simulation to include in file name
+condit = '-fin-'+str(int(Nparts))   # special conditions of simulation to include in file name
 scale  = 90               # scaling factor of planets and binary for plotting
 size   = 30                # size of system in plot
 sizez  = 5             # size of zoomed in system

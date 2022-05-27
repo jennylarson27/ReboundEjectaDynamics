@@ -8,10 +8,10 @@ import additionaleffects as ae
 
 inttime = np.arange(0., 1e5)
 
-inner  = -1.55
-innery = -1.15
-outer  = 1.55
-outery = 1.15
+inner  = -1.275
+innery = -1.2
+outer  = 1.275
+outery = 1.2
 
 bodycolor = 'steelblue'
 partcolor = 'black'
@@ -72,15 +72,17 @@ for t in inttime:
 	datavx0 = data[3, 0]
 	datavy0 = data[4, 0]
 	datavz0 = data[5, 0]
+        #print('datazero=',datax0)
 
 
 
-	data[0, :] -= data[0, 0]
-	data[1, :] -= data[1, 0]
-	data[2, :] -= data[2, 0]
-	data[3, :] -= data[3, 0]
-	data[4, :] -= data[4, 0]
-	data[5, :] -= data[5, 0]
+	data[0, :] -= datax0
+	data[1, :] -= datay0
+	data[2, :] -= dataz0
+	data[3, :] -= datavx0
+	data[4, :] -= datavy0
+	data[5, :] -= datavz0
+        #print('data2=',datax0, data[0,0])
 
 
 #	print('dist =', np.sqrt(data[0,5]**2 + data[1,5]**2 + data[2,5]**2))
@@ -104,6 +106,7 @@ for t in inttime:
 
 
 	if len(rmdata) != 0:
+                print('rmdataactual=',rmdata)
 		rmdata[0] -= datax0
 		rmdata[1] -= datay0
 		rmdata[2] -= dataz0
@@ -122,7 +125,7 @@ for t in inttime:
 		rmx = np.concatenate((rmx, rmdatax), axis=0)
 		rmy = np.concatenate((rmy, rmdatay), axis=0)
 		rmz = np.concatenate((rmz, rmdataz), axis=0)
-	print ('removed =', len(rmx))
+	print ('removed =', (np.sqrt(rmx**2+rmy**2+rmz**2)))
 
 	if binary == True:
 		if len(rmbdata) != 0:
@@ -275,10 +278,10 @@ for t in inttime:
 
 
 	if radpress == True:
-		ax.arrow(-1.2, -.75, .050*dx, .050*dy, head_width=.07, color='black', label='Sun')
-		ax.annotate('Sun', xy=(-1.4, -1), fontsize=16)
+		ax.arrow(-.15, -.1, .050*dx, .050*dy, head_width=.01, color='black', label='Sun')
+		ax.annotate('Sun', xy=(-.22, -.13), fontsize=16)
 
-	ax.annotate('t=' + str(np.round(seconds, 3)) + 's', xy=((inner+.05), (outery-.2)), fontsize=20)
+	ax.annotate('t=' + str(np.round(seconds, 3)) + 's', xy=((inner+.05), (outery-.07)), fontsize=20)
 
 	#ax.arrow(1, -.2, .1*bdx, .1*bdy, head_width=.05, color='black')
 
@@ -287,7 +290,7 @@ for t in inttime:
 	axissize = 18
 	ax.tick_params(labelsize=axissize)
 	font = 20
-	ax.set_title('Case 2', fontsize=font)
+	#ax.set_title('t=' + str(np.round(seconds, 3)) + 's', fontsize=font)
 	ax.set_xlabel('x [km]', fontsize=font)
 	ax.set_ylabel('y [km]', fontsize=font)
 
@@ -357,10 +360,10 @@ for t in inttime:
 
 
 	if radpress == True:
-		ax.arrow(-1.2, -.75, .050*dx, .050*dz, head_width=.07, color='black', label='Sun')
-		ax.annotate('Sun', xy=(-1.4, -1), fontsize=16)
+		ax.arrow(-.15, -.1, .050*dx, .050*dz, head_width=.01, color='black', label='Sun')
+		ax.annotate('Sun', xy=(-.2, -.13), fontsize=16)
 
-	ax.annotate('t=' + str(np.round(seconds, 3)) + 's', xy=((inner+.05), (outery-.2)), fontsize=20)
+	ax.annotate('t=' + str(np.round(seconds, 3)) + 's', xy=((inner+.05), (outery-.07)), fontsize=20)
 
 	ax.set_xlim(inner, outer)
 	ax.set_ylim(innery, outery)
@@ -373,10 +376,7 @@ for t in inttime:
 	#print (np.sqrt(np.asarray(binx)**2 + np.asarray(biny)**2 + np.asarray(binz)**2))
 	plt.close(fig)
 
-
-
-        
-#plot yz
+	# plot yz
 	fig, ax = plt.subplots()
 
 	fig.subplots_adjust(hspace=.4, bottom=.25, left=.25)
@@ -437,10 +437,10 @@ for t in inttime:
 
 
 	if radpress == True:
-		ax.arrow(-1.2, -.75, .050 * dx, .050 * dz, head_width=.07, color='black', label='Sun')
-		ax.annotate('Sun', xy=(-1.4, -1), fontsize=16)
+		ax.arrow(-.15, -.1, .050 * dx, .050 * dz, head_width=.01, color='black', label='Sun')
+		ax.annotate('Sun', xy=(-.2, -.13), fontsize=16)
 
-	ax.annotate('t=' + str(np.round(seconds, 3)) + 's', xy=((inner + .05), (outery - .2)), fontsize=20)
+	ax.annotate('t=' + str(np.round(seconds, 3)) + 's', xy=((inner + .05), (outery - .07)), fontsize=20)
 
 	ax.set_xlim(inner, outer)
 	ax.set_ylim(innery, outery)

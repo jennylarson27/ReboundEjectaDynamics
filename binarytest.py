@@ -30,28 +30,22 @@ def conesetup(*rest):
 	cvel = (0, 0, 0)
 
 
-	pos, x1, y1, z1, thetaprime, r, s, pos0p, vpos = bss.ejectaconepos(mex, aT,
-																			  bT,
-																			  cT,
-																			  hpart,
-																			  lat,
-																			  lon,
-																			  beta,
-																			  axtiltT,
-																			  axdirT,
-																			  Nparts,
-																			  cpos,
-																			  mtarg,
-																			  rtarg,
-																			  vi,
-																			  a,
-																			  mi,
-																			  rhoT,
-																			  rhoi,
-																			  mu,
-																			  K1,
-																			  Ybar=0.,
-															   )
+	pos, x1, y1, z1, thetaprime, r, s, pos0p, vpos = bss.ejectaconepos(mex,
+																	   aT,
+																	   bT,
+																	   cT,
+																	   hpart,
+																	   lat,
+																	   lon,
+																	   beta,
+																	   Nparts,
+																	   cpos,
+																	   mtarg,
+																	   rhoT,
+																	   shapemodel,
+																	   vert,
+																	   )
+	print('opos',pos)
 
 
 
@@ -74,11 +68,11 @@ def conesetup(*rest):
 
 
 	vpart = bss.veldist(sim, r, mtarg, rtarg, mex, mu, rhoT, Cvps, Ctg, Ybar)     #sim, r, mtarg, rtarg, vi, a, mi, rhoT, rhoi, mu, K1, Cvps=0., Ctg=0.8, Ybar=0.)
-	print('vel=', vpart)
+	#print('vel=', vpart)
 	#vpart = np.full(Nparts, vinit)
 
 	vel = bss.ejectaconevel(vpos,
-							pos0p,
+							#pos0p,
 							vpart,
 							#vpos
 							#thetaprime,
@@ -213,37 +207,12 @@ def sim_setup(*rest):
 		Nplanets += 1
 		#sim.remove(1)
 
-	# add massless sun
-	#sim.add(x=possun[0],
-	#		y=possun[1],
-	#		z=possun[2],
-	#		vx=velsun[0],
-	#		vy=velsun[1],
-	#		vz=velsun[2],
-	#		)
-	#Nplanets += 1
 
-	planets = ['Mercury',
-			    'Venus',
-			    'Earth',
-			    'Mars',
-			    'Jupiter',
-			    'Saturn',
-			    'Uranus',
-			    'Neptune',
-			   ]
 
-#	Nplanets += len(planets)
-
-#	if binary == True:
-		#for planet in planets:
-#		sim.add(planets, primary=sim.particles[2])
-#	else:
-		#for planet in planets:
-#		sim.add(planets, primary=sim.particles[1])
-
+	# set up size distribution and particle initial positions
 	if sizedist == True:
 		pos, vel, Nparts, radii = conesetup()
+		print('pos',pos)
 
 		sim = bss.addpartcart(sim,
 							  pos,
@@ -260,11 +229,12 @@ def sim_setup(*rest):
 							  vel,
 							  Nparts,
 							  )
+	#print('pos',pos)
 
 
 	if radpress == True:
 		sim, Nplanets, acc = type1radpress()
-		print('acc =', np.sqrt(acc[0] ** 2 + acc[1] ** 2 + acc[2] ** 2))
+#		print('acc =', np.sqrt(acc[0] ** 2 + acc[1] ** 2 + acc[2] ** 2))
 
 
 
@@ -280,6 +250,51 @@ def sim_setup(*rest):
 
 
 	# Update gravitational potentials
+	if shapemodel == True:
+		Mi, Xg, Yg, Zg = ae.shapemass(vert, facet, mtarg, layers)
+		
+		def gravshapemod(reb_sim):
+			'''calculates accelerations for each particle based on the mascon layer model'''
+			cx = sim.particles[0].x
+			cy = sim.particles[0].y
+			cz = sim.particles[0].z
+	
+
+			for p in sim.particles[1:]:
+				x = p.x
+				y = p.y
+				z = p.z
+#				 print('xinit',x)
+
+				# distance from sphere
+				rsph = np.sqrt((x-cx) ** 2 + (y-cy) ** 2 + (z-cz) ** 2)
+				axsph = ((mtarg * sim.G) / rsph ** 2) * (cx-x)/rsph
+				aysph = ((mtarg * sim.G) / rsph ** 2) * (cy-y)/rsph
+				azsph = ((mtarg * sim.G) / rsph ** 2) * (cz-z)/rsph
+
+				# distance from particle to each mascon
+				r = np.sqrt((x - Xg) ** 2 + (y - Yg) ** 2 + (z - Zg) ** 2)
+
+				# force from each mascon
+				f = (Mi * sim.G) / (r ** 2)
+
+				xhat = (Xg - x) / r
+				yhat = (Yg - y) / r
+				zhat = (Zg - z) / r
+
+				fx = np.sum(f * xhat)
+				fy = np.sum(f * yhat)
+				fz = np.sum(f * zhat)
+
+				p.ax += fx - axsph
+				p.ay += fy - aysph
+				p.az += fz - azsph
+
+		sim.additional_forces = gravshapemod
+
+
+				
+	
 	if ellipsoid == True:
 
 
@@ -340,6 +355,8 @@ def sim_setup(*rest):
 
 				sim.additional_forces = ellipsoidgrav
 
+		
+
 		if binary == True:
 			bodies = np.arange(0, Nplanets + Nparts)
 			exclude = [1]
@@ -394,59 +411,90 @@ def sim_loop(time, *rest):
 	# Remove and count particles
 
 	# if ellipsoid == True:
-	# 	sim, Nparts, rminds, landed, landx, landy, landz, simorigin = bss.rmlandedparts(sim,
-	# 	 																				Nparts,
-	# 	 																				aT,
-	# 	 																				bT,
-	# 	 																				cT,
-	# 	 																				landed,
-	# 	 																				rminds,
-	# 																					binary,
-	# 																					rbin,
-	# 																					axdirT,
-	# 																					axtiltT,
-	# 																					360. / perT,
-	# 	 																				)
+	#	sim, Nparts, rminds, landed, landx, landy, landz, simorigin = bss.rmlandedparts(sim,
+	#																					Nparts,
+	#																					aT,
+	#																					bT,
+	#																					cT,
+	#																					landed,
+	#																					rminds,
+	#																					binary,
+	#																					rbin,
+	#																					axdirT,
+	#																					axtiltT,
+	#																					360. / perT,
+	#																					)
 	#else:
 
 	#sim, landed, Nparts, rminds = bss.rmparticles(sim, Nparts, landed, inttime, aT, aB, condit, rminds)
 
+
+
+      
 	sim, landed, Nparts = bss.rmland(sim,
- 	 								 Nparts,
- 	 								 aT,
- 	 								 bT,
- 	 								 cT,
- 	 								 landed,
- 	 								 inttime,
- 	 								 condit,
- 	 								 axdirT,
- 	 								 axtiltT,
- 	 								 perT,
- 	 								 timestep,
- 	 								 aB,
- 	 								 rotation,
- 	 						   )
+					 Nparts,
+					 aT,
+					 bT,
+					 cT,
+					 landed,
+					 inttime,
+					 condit,
+					 axdirT,
+					 axtiltT,
+					 perT,
+					 timestep,
+					 'rmlandpartdata',
+					# aB,
+					 rotation,
+					 shapemodel,
+					 vert,
+                                         bincent=False,
+	)
+
+
+	if binary == True:
+		sim, landed, Nparts = bss.rmland(sim,
+						 Nparts,
+						 aB,
+						 bB,
+						 cB,
+						 landed,
+						 inttime,
+						 condit,
+						 axdirB,
+						 axtiltB,
+						 perB,
+						 timestep,
+						 'rmblandpartdata',
+						 rotation,
+						 shapemodel,
+						 vert,
+                                                 bincent=True,
+						 )
+					 
+
+	
 
 		# sim, Nparts, rminds, landed, landx, landy, landz, simorigin = bss.rmlandedparts(sim,
-	 	# 																				Nparts,
-	 	# 																				aT,
-	 	# 																				bT,
-	 	# 																				cT,
-	 	# 																				landed,
-	 	# 																				rminds,
-		# 																				binary,
-		# 																				rbin,
-	 	# 																				)
+		#																				Nparts,
+		#																				aT,
+		#																				bT,
+		#																				cT,
+		#																				landed,
+		#																				rminds,
+		#																				binary,
+		#																				rbin,
+		#																				)
 
 		#print(np.sqrt(np.asarray(landx) ** 2 + np.asarray(landy) ** 2 + np.asarray(landz) ** 2))
 
 	# if binary == True:
-	# 	sim, Nparts, rminds, binland, binx, biny, binz = bss.rmbinparts(sim,
-	# 																	rbin,
-	# 																	Nparts,
-	# 																	binland,
-	# 																	rminds,
-	# 																	)
+	#	sim, Nparts, rminds, binland, binx, biny, binz = bss.rmbinparts(sim,
+	#																	rbin,
+	#																	Nparts,
+	#																	binland,
+	#																	rminds,
+	#																	)
 
 	print ('Nparts =', Nparts)
 
@@ -484,7 +532,7 @@ omegaB = 360. / perB
 
 inttime = 0
 N_out = (1 / dt) * tmax
-times = np.linspace(0, tmax, N_out)
+times = np.linspace(0, tmax, int(N_out))
 #sim.move_to_com()
 landed = 0
 
@@ -494,7 +542,8 @@ rminds = []
 #print('aellip =', np.sqrt(p.ax**2 + p.ay**2 + p.az**2))
 for i, time in enumerate(times):
 	sim_loop(time)
+	print('we are not going insane...yet.')
 	#print('mtarg =', mtarg)
 	#print('targetbody =', sim.particles["target"])
 #	print('times =', ctime.time(), ctime.clock())
-	np.savetxt('cputimes'+condit+'.txt', np.asarray([ctime.time(), ctime.clock()]), fmt='%.18e', delimiter=' ', newline='\n')
+	#np.savetxt('cputimes'+condit+'.txt', np.asarray([ctime.time(), ctime.clock()]), fmt='%.18e', delimiter=' ', newline='\n')

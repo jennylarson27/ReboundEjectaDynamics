@@ -11,36 +11,42 @@ days = 86400.  # seconds in day
 G    = 6.67e-11 #* (days**2) / (1000.**3)
 
 # add target body
-rtarg  = 75. #56.67*1e3#75.#400.     #km
-mtarg  = 3e9 #2e3 * (4./3.) * np.pi * (rtarg)**3#3e9#4.56e11 # kg
+rtarg  = 3.98e2#75. #56.67*1e3#75.#400.     #km
+mtarg  = 5.27e11#3e9 #2e3 * (4./3.) * np.pi * (rtarg)**3#3e9#4.56e11 # kg
 # target parameters (most from table 1)
 K1    = 0.5
 mu    = 0.41
 Ybar  = 0.
-rhoT  = 1750.
+rhoT  = 2170.
 
 
-rotation  = False
+rotation  = True
 ellipsoid = False
 
 axtiltT = 0.      # axis of rotation beta
 axdirT  = 0.       # direction axis of rotation is tilted alpha
-perT    = 6. * 3600. #2.2593 * 60. * 60. # period of target body rotation (in seconds)
+perT    = 2 * 3600. #2.2593 * 60. * 60. # period of target body rotation (in seconds)
 
-axtiltB = 5.      # axis of rotation beta
+axtiltB = 0.      # axis of rotation beta
 axdirB  = 0.       # direction axis of rotation is tilted alpha
-perB    = 2. * 60. * 60. # period of binary rotation (in seconds)
+perB    = 2.26 * 60. * 60. # period of binary rotation (in seconds)
 omegaB  = 360. / perB
 
-# use non-axisymmetric gravity
-aT = 75. #56.67*1e3
-bT = 75. #56.67*1e3
-cT = 75. #56.67*1e3 #75
+# use ellipsoid gravity
+aT = 398.#430.                   #rtarg * 1.3#75. #56.67*1e3
+bT = 398.#400.                          #rtarg#75. #56.67*1e3
+cT = 398.#370.                       #rtarg / 1.2#75. #56.67*1e3 #75
+
+# use shape mode
+shapemodel = False
+vert = 'Didymos_Vert.tab'
+facet = 'Didymos_Face.tab'
+layers = 5
 
 # set following to zero if binary == False
-aB = 0#400.
-bB = 0#400.
-cB = 0#400.
+aB = 369.2
+bB = 369.2
+cB = 369.2
 
 # add sun
 msun = 2e30   #kg
@@ -50,11 +56,11 @@ possun = (-1.910547141790527E-01*-au, 1.207684573980673E+00*-au, 3.1471393427518
 velsun = ((-1.732616227386132E-02*-au)/days, (-2.405596054545154E-03*-au)/days, (-1.029063688982998E-03*-au)/days)#((-3.098821517729514E-03*-au)/days, (6.981939328033965E-03*-au)/days, (4.638506014355656E-03*-au)/days)#((-1.732616227386132E-02*-au)/days, (-2.405596054545154E-03*-au)/days, (-1.029063688982998E-03*-au)/days)
 
 # add binary
-binary = False          # True if using binary, else False
+binary = True#True          # True if using binary, else False
 # If not including a binary (binary=False), set the following values to zero.
-mbin = 4.56e11#3e9   #kg
-rbin = 400.#75.  #m
-abin = 1.2e3   #m
+mbin = 4.22e11 #4.56e11#3e9   #kg
+rbin = 369.2#75.  #m
+abin = 7.99e2   #m
 ebin = 0.
 ibin = 0.
 periapbin=0.
@@ -77,16 +83,16 @@ mex = 7e5   # mass of material excavated
 # add particles
 Nparts = 1e4
 
-sizedist = False       # True if using size distribution, else False
+sizedist = True       # True if using size distribution, else False
 # If not using size distribution (sizedist=False), set next four values to zero.
 Res  = Nparts/10.        # Resolution of distribution (larger number=more particle sizes between rmin and rmax)
 rmin = 1e-4#/au    # minimum radius
 rmax = 1e0#/au    # maximum radius
 p    = -3.        # power of distribution
-rho  = 2e3      # kg/m**3
+rho  = 2170.      # kg/m**3
 
 hpart   = 1e-2  # particle initial height (mm)
-lon     = 90.     # longitude around equator (0-360)
+lon     = 0.     # longitude around equator (0-360)
 lat     = 0.    # latitude from equator (-90-90) equator=0
 beta    = 45.    # opening angle of ejecta cone
 #vinit   = .06#.8 * np.sqrt((2 * G * (mtarg)) / (hpart + bT))#.06   33.67  # initial velocity relative to target body

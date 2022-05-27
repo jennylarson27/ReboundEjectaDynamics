@@ -2,7 +2,10 @@
 import rebound
 import numpy as np
 import matplotlib.pyplot as plt
+import csv
+from scipy import interpolate
 from rebound import hash as h
+
 
 
 
@@ -77,7 +80,7 @@ def datasave(sim, fname, Nplanets, Nparts):
 
 
 
-def ejectaconepos(mex, aT, bT, cT, h, lat, lon, beta, tilt, axdir, Nparts, tpos, mtarg, rtarg, vi, a, mi, rhoT, rhoI, mu, K1, Ybar=0.):
+def ejectaconepos(mex, aT, bT, cT, h, lat, lon, beta, Nparts, tpos, mtarg, rhoT, shapemodel=False, vertfile=None):
 	'''Setting ejecta cone position'''
 
 	# cone base
@@ -86,16 +89,60 @@ def ejectaconepos(mex, aT, bT, cT, h, lat, lon, beta, tilt, axdir, Nparts, tpos,
 	#z0p = cT * np.sin(np.radians(lat))
 
 	# calculate cone base on surface
-	curv = (aT ** 2) / np.sqrt(aT ** 2
+	if shapemodel == True:
+		x = []
+		y = []
+		z = []
+		# read in data files
+		with open(vertfile) as vertices:
+			vertice = csv.reader(vertices, delimiter='\t')
+			rownum = 0
+			for row in vertice:
+				#print(float(row[2]))
+				#print(row)
+				x.append(float(row[0]))
+				y.append(float(row[1]))
+				z.append(float(row[2]))
+				rownum += 1
+		vertx = 1e3 * np.asarray(x)
+		verty = 1e3 * np.asarray(y)
+		vertz = 1e3 * np.asarray(z)
+		#print(vertx)
+
+		#vlon = np.degrees(np.arccos(vertx / np.sqrt(vertx ** 2 + verty ** 2)))
+		#vlat = np.degrees(np.arcsin(vertz / np.sqrt(vertx ** 2 + verty ** 2 + vertz ** 2)))
+
+		p = np.sqrt(vertx ** 2 + verty ** 2)
+		#print('p',p)
+
+		vlat = np.degrees(np.arctan(vertz / p))
+		vlon = np.degrees(np.arctan(verty / vertx))   #np.arccos(cx / (np.sqrt(cx ** 2 + cy ** 2 + cz ** 2) * np.cos(lat)))
+		#print('vlat',vlat)
+
+		points = (vlon, vlat)
+		vr = np.sqrt(vertx ** 2 + verty ** 2 + vertz ** 2)
+		point = (lon, lat)
+		hav = (.5 * (1 - np.cos(np.radians(lat - vlat))) + .5 * (1 - np.cos(np.radians(lon - vlon))) * np.cos(np.radians(lat)) * np.cos(np.radians(vlat)))
+		#inter = interpolate.interp2d(vlon, vlat, vr)
+		rbase = vr[int(np.argmin(hav))]	  #inter(lon, lat)
+		print('rbase',rbase)
+
+		x0p = rbase * np.cos(np.radians(lat)) * np.cos(np.radians(lon))
+		y0p = rbase * np.cos(np.radians(lat)) * np.sin(np.radians(lon))
+		z0p = rbase * np.sin(np.radians(lat))
+		print(x0p)
+
+	else:
+		curv = (aT ** 2) / np.sqrt(aT ** 2
 							   - (aT ** 2 - cT ** 2) * np.sin(np.radians(lat)) ** 2
 							   - (aT ** 2 - bT ** 2) * np.cos(np.radians(lat)) ** 2 * np.sin(np.radians(lon)) ** 2)
 
-	ee = (aT ** 2 - bT ** 2) / aT ** 2
-	ex = (aT ** 2 - cT ** 2) / aT ** 2
+		ee = (aT ** 2 - bT ** 2) / aT ** 2
+		ex = (aT ** 2 - cT ** 2) / aT ** 2
 
-	x0p = curv * np.cos(np.radians(lat)) * np.cos(np.radians(lon))
-	y0p = curv * (1 - ee) * np.cos(np.radians(lat)) * np.sin(np.radians(lon))
-	z0p = curv * (1 - ex) * np.sin(np.radians(lat))
+		x0p = curv * np.cos(np.radians(lat)) * np.cos(np.radians(lon))
+		y0p = curv * (1 - ee) * np.cos(np.radians(lat)) * np.sin(np.radians(lon))
+		z0p = curv * (1 - ex) * np.sin(np.radians(lat))
 
 	pos0p = (x0p, y0p, z0p)
 
@@ -118,14 +165,14 @@ def ejectaconepos(mex, aT, bT, cT, h, lat, lon, beta, tilt, axdir, Nparts, tpos,
 	# transient crater radius
 
 	# Rg = ((3 * K1 * mi) / (np.pi * rhoT)) ** (1. / 3.) \
-	# 	 * (((g * a) / vi ** 2) * (rhoT / rhoI) ** (-1. / 3.)
-	# 		+ (Ybar / (rhoT * vi ** 2)) ** ((2 + mu) / 2)) ** (-mu / (2 + mu))
+	#	 * (((g * a) / vi ** 2) * (rhoT / rhoI) ** (-1. / 3.)
+	#		+ (Ybar / (rhoT * vi ** 2)) ** ((2 + mu) / 2)) ** (-mu / (2 + mu))
 
 	#Rg = K1 * (rhoT / mi ) ** (-1./3.) * (rhoT / rhoI) ** ((2 + mu - 6 * 0.4) / (6 + 3 * mu)) * ((g * a) / vi ** 2) ** (-mu / (2 + mu))
 	Rg = ((3. / np.pi) * (mex / rhoT)) ** (1. / 3.)
-	print('rg=', Rg)
+	#print('rg=', Rg)
 
-	#rdisk  = h * np.tan(np.radians(beta))
+	#rdisk	= h * np.tan(np.radians(beta))
 	#rinner = h * np.tan(np.radians(beta - diskwidth))
 
 
@@ -144,7 +191,7 @@ def ejectaconepos(mex, aT, bT, cT, h, lat, lon, beta, tilt, axdir, Nparts, tpos,
 
 	#opang = np.degrees(np.arctan(r / h))
 	#mag1 = np.sqrt(h**2 + r**2)#np.sqrt(x1**2 + y1**2 + z1new**2)
-	#phiang  = opang * np.sin(np.radians(thetaprime))
+	#phiang	 = opang * np.sin(np.radians(thetaprime))
 	#thetang = opang * np.cos(np.radians(thetaprime))
 	#x = mag1 * np.cos(np.radians(lat + phiang)) * np.cos(np.radians(lon + thetang)) + x0
 	#y = mag1 * np.cos(np.radians(lat + phiang)) * np.sin(np.radians(lon + thetang)) + y0
@@ -165,14 +212,14 @@ def ejectaconepos(mex, aT, bT, cT, h, lat, lon, beta, tilt, axdir, Nparts, tpos,
 	#x1, y1, z1 = rotmatrix3d(x, y, z, np.radians(lon), np.radians(laty), np.radians(latx))
 	x1 = x * np.cos(np.radians(lon)) * np.cos(np.radians(90-lat)) \
 		 - y * np.sin(np.radians(lon)) \
-	 	 + z * np.cos(np.radians(lon)) * np.sin(np.radians(90-lat))
+		 + z * np.cos(np.radians(lon)) * np.sin(np.radians(90-lat))
 
 	y1 = x * np.sin(np.radians(lon)) * np.cos(np.radians(90-lat)) \
-	 	 + y * np.cos(np.radians(lon)) \
-	 	 + z * np.sin(np.radians(lon)) * np.sin(np.radians(90-lat))
+		 + y * np.cos(np.radians(lon)) \
+		 + z * np.sin(np.radians(lon)) * np.sin(np.radians(90-lat))
 
 	z1 = -x * np.sin(np.radians(90-lat)) \
-	 	 + z * np.cos(np.radians(90-lat))
+		 + z * np.cos(np.radians(90-lat))
 
 
 
@@ -208,13 +255,13 @@ def ejectaconepos(mex, aT, bT, cT, h, lat, lon, beta, tilt, axdir, Nparts, tpos,
 
 
 
-def ejectaconevel(vpos, pos0p, v0, per=86400., rotation=False):
+def ejectaconevel(vpos, v0):
 	'''Sets up ejecta cone velocities 2/24/20'''
 
 	# impact position on surface
-	x0p = pos0p[0]
-	y0p = pos0p[1]
-	z0p = pos0p[2]
+	#x0p = pos0p[0]
+	#y0p = pos0p[1]
+	#z0p = pos0p[2]
 
 	vxhat = vpos[0]
 	vyhat = vpos[1]
@@ -291,199 +338,6 @@ def NOPEejectaconevel(opang, thetaprime, lat, lon, pos, v0, tvel, axtilt, axdir,
 
 
 
-#
-# def ejectaconepos(aT, bT, cT, h, lat, lon, beta, tilt, axdir, Nparts, tpos, diskwidth=10.):
-# 	'''Setting ejecta cone position'''
-#
-# 	# cone base
-# 	x0p = aT * np.cos(np.radians(lat)) * np.cos(np.radians(lon))
-# 	y0p = bT * np.cos(np.radians(lat)) * np.sin(np.radians(lon))
-# 	z0p = cT * np.sin(np.radians(lat))
-#
-# 	r0 = np.sqrt(x0p**2 + y0p**2 + z0p**2)
-#
-# 	x0 = r0 * np.sin(np.radians(tilt)) * np.cos(np.radians(axdir))
-# 	y0 = r0 * np.sin(np.radians(tilt)) * np.sin(np.radians(axdir))
-# 	z0 = r0 * np.cos(np.radians(tilt))
-#
-#
-# 	# disk radius
-# 	rdisk  = h * np.tan(np.radians(beta + (diskwidth/2.)))
-# 	rinner = h * np.tan(np.radians(beta - (diskwidth/2.)))
-#
-# 	r = (rdisk - rinner) * np.random.random_sample(Nparts) + rinner
-#
-# 	thetaprime = 360. * np.random.random_sample(Nparts)
-#
-# 	opang = np.degrees(np.arctan(r / h))
-#
-# 	mag1 = h #+ np.sqrt(x0p**2 + y0p**2 + z0p**2) #np.sqrt(h**2 + r**2)#np.sqrt(x1**2 + y1**2 + z1new**2)
-#
-# 	phiang  = opang * np.sin(np.radians(thetaprime))
-# 	thetang = opang * np.cos(np.radians(thetaprime))
-#
-# 	x = mag1 * np.cos(np.radians(lat + phiang)) * np.cos(np.radians(lon + thetang)) + x0
-# 	y = mag1 * np.cos(np.radians(lat + phiang)) * np.sin(np.radians(lon + thetang)) + y0
-# 	z = mag1 * np.sin(np.radians(lat + phiang)) + z0
-#
-#
-# 	pos = (x + tpos[0], y + tpos[1], z + tpos[2])
-#
-# 	s = np.sqrt((x-x0)**2 + (y-y0)**2 + (z-z0)**2)   # distance from particles to cone base
-#
-# 	return pos, x, y, z, opang, thetaprime, r, s
-#
-#
-#
-#
-# def ejectaconevel(phiang, thetang, lat, lon, pos, v0, tvel, tilt, axdir, per=86400., rotation=False):
-# 	'''Setting the ejecta cone velocity'''
-#
-# 	vx = (v0 * np.cos(np.radians(lat + phiang)) * np.cos(np.radians(lon + thetang))) #* np.sin(np.radians(opang)) * np.cos(np.radians(thetaprime))
-# 	vy = (v0 * np.cos(np.radians(lat + phiang)) * np.sin(np.radians(lon + thetang))) #* np.sin(np.radians(opang)) * np.sin(np.radians(thetaprime))
-# 	vz = (v0 * np.sin(np.radians(lat + phiang))) #* np.cos(np.radians(opang))
-#
-#
-# 	if rotation == True:
-# 		r = np.sqrt(pos[0] ** 2 + pos[1] ** 2 + pos[2] ** 2)
-# 		omega = (2. * np.pi) / per
-# 		vmag = r * omega
-#
-# 		vxrot = vmag * np.sin(np.radians(tilt)) * np.sin(np.radians(axdir))
-# 		vyrot = vmag * np.sin(np.radians(tilt)) * np.cos(np.radians(axdir))
-# 		vzrot = vmag * np.cos(np.radians(tilt))
-#
-# 		vx = np.asarray(vx) + vxrot
-# 		vy = np.asarray(vy) + vyrot
-# 		vz = np.asarray(vz) + vzrot
-#
-# 	vel = (np.asarray(vx) + tvel[0], np.asarray(vy) + tvel[1], np.asarray(vz) + tvel[2])
-#
-# 	return vel
-#
-#
-#
-
-
-
-# def rmbinparts(sim, Nplanets, Nparts, abin, bbin, cbin, binland, rminds):
-# 	binx = []
-# 	biny = []
-# 	binz = []
-#
-# 	bodyrange = np.linspace(0, Nparts+1, Nparts+2)
-#
-# 	xp = np.asarray([sim.particles[int(j)].x for j in bodyrange])
-# 	yp = np.asarray([sim.particles[int(j)].y for j in bodyrange])
-# 	zp = np.asarray([sim.particles[int(j)].z for j in bodyrange])
-#
-# 	pdist = np.sqrt(xp**2 + yp**2 + zp**2)
-#
-# 	#print('alldistance =', pdist)
-#
-# 	cx = xp[1]
-# 	cy = yp[1]
-# 	cz = zp[1]
-# 	#print('i hate this =', pdist[1])
-#
-# 	#print('bindistance =',np.sqrt(cx**2 + cy**2 + cz**2))
-#
-#
-# 	x = xp[2:] - cx
-# 	y = yp[2:] - cy
-# 	z = zp[2:] - cz
-#
-# 	lat = np.arctan(z / np.sqrt(x**2 + y**2))
-# 	lon = np.arctan(y / x)
-#
-# 	x0 = abin * np.cos(lat) * np.cos(lon)
-# 	y0 = bbin * np.cos(lat) * np.sin(lon)
-# 	z0 = cbin * np.sin(lat)
-#
-# 	distancerm = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-# 	surfacerm  = np.sqrt(x0**2 + y0**2 + z0**2)
-#
-# 	inds = np.where(distancerm <= surfacerm)[0]
-#
-# 	Nparts -= len(inds)
-# 	if len(inds) != 0:
-# 		inds += 2
-# 		binx = [sim.particles[int(i)].x for i in inds]
-# 		biny = [sim.particles[int(i)].y for i in inds]
-# 		binz = [sim.particles[int(i)].z for i in inds]
-#
-# 		for i in inds[::-1]:
-# 			sim.remove(int(i))
-# 			rminds.append(int(i))
-# 		binland += len(inds)
-# 	# binx = np.where((distancerm <= surfacerm), xp)
-# 	# biny = np.where((distancerm <= surfacerm), yp)
-# 	# binz = np.where((distancerm <= surfacerm), zp)
-# 	#
-# 	# partind = np.where((distancerm <= surfacerm))
-# 	#
-# 	# for p in partind:
-# 	# 	sim.remove(p)
-# 	# 	rminds.append(p)
-#
-# 	Nparts -= len(binx)
-#
-# 	return sim, Nparts, rminds, binland, binx, biny, binz
-
-
-def rmbinparts(sim, rbin, Nparts, binland, rminds):
-	'''DO NOT USE THIS'''
-	binx = []
-	biny = []
-	binz = []
-
-	dt = sim.dt
-
-	number = 1
-
-	bodies = np.linspace(number, Nparts, Nparts)
-
-
-	# particle positions relative to gravitational body
-	xp = np.asarray([sim.particles[int(i)].x for i in bodies])
-	yp = np.asarray([sim.particles[int(i)].y for i in bodies])
-	zp = np.asarray([sim.particles[int(i)].z for i in bodies])
-
-
-
-	cx = xp[0]   #sim.particles[0].x
-	cy = yp[0]   #sim.particles[0].y
-	cz = zp[0]   #sim.particles[0].z
-
-	x = xp[1:] - cx
-	y = yp[1:] - cy
-	z = zp[1:] - cz
-
-	# calculate distances
-	distancerm = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-
-	surfacerm  = rbin       #np.sqrt((A + B + C) ** -1)
-	print('bin surface=', surfacerm)
-
-	inds = np.where(distancerm - surfacerm <= 0)[0] + number #np.where(distancerm[:] <= surfacerm[:])[0]
-
-	print('binary dist =', distancerm - surfacerm)
-
-	Nparts -= len(inds)
-	if len(inds) != 0:
-		inds += 1#Nplanets
-		binx = [sim.particles[int(i)].x for i in inds]
-		biny = [sim.particles[int(i)].y for i in inds]
-		binz = [sim.particles[int(i)].z for i in inds]
-
-		for i in inds[::-1]:
-			sim.remove(int(i))
-			rminds.append(int(i))
-		binland += len(inds)
-
-	return sim, Nparts, rminds, binland, binx, biny, binz
-
-
 
 def rmdatasave(rmx, rmy, rmz, fname):
 	'''USE THIS'''
@@ -497,178 +351,29 @@ def rmdatasave(rmx, rmy, rmz, fname):
 
 
 
-def rmparticles(sim, Nparts, landed, inttime, aT, aB, condit, rminds):
-	'''remove based on names 10/21/2020'''
-
-	if aB == 0:
-		binary = False
-		indshift = 1
-	else:
-		binary = True
-		indshift = 2
-
-	nhash = [p.hash for p in sim.particles]
-	print(nhash)
-
-
-
-	cx = sim.particles[h('target')].x
-	cy = sim.particles[h('target')].y
-	cz = sim.particles[h('target')].z
-
-
-	landx, landy, landz = ([], [], [])
 
 
 
 
-	print('len', len(rminds))
-
-	#if len(remaining) == 0:
-	leftparts = np.linspace(1, Nparts, Nparts)
-		#leftparts = [1,3,5]
-	if len(rminds) != 0:
-		removeinds = np.asarray(rminds) - 1
-		leftparts = np.delete(leftparts, removeinds)#remaining
-		#print('left=', leftparts)
-
-
-	print(leftparts)
-
-
-
-	# for n in reversed(leftparts):
-	#
-	# 	n = int(n)
-		#print(n)
-
-		#nhash = sim.particles[n].hash
-		#print(nhash)
-
-
-	x = [sim.particles[h(n)].x for n in leftparts]
-	y = [sim.particles[h(n)].y for n in leftparts]
-	z = [sim.particles[h(n)].z for n in leftparts]
-
-	xT = x - cx
-	yT = y - cy
-	zT = z - cz
-
-	dist = np.sqrt(xT ** 2 + yT ** 2 + zT ** 2)
-
-	surf = aT
-
-	inds = np.where(dist <= surf)[0]
-
-	for i in reversed(inds):
-		if i > 1:
-			landx.append(sim.particles[i].x)
-			landy.append(sim.particles[i].y)
-			landz.append(sim.particles[i].z)
-
-			landed += 1
-			Nparts -= 1
-
-			sim.remove(i)
-
-	if binary == True:
-		bx = sim.particles[h('bin')].x
-		by = sim.particles[h('bin')].y
-		bz = sim.particles[h('bin')].z
-
-		blandx, blandy, blandz = ([], [], [])
-
-		xB = x - bx
-		yB = y - by
-		zB = z - bz
-
-		bdist = np.sqrt(xB ** 2 + yB ** 2 + zB ** 2)
-
-		bsurf = aB
-		indsb = np.where(bdist <= bsurf)[0]
-
-		for i in reversed(indsb):
-			if i > 1:
-				blandx.append(sim.particles[i].x)
-				blandy.append(sim.particles[i].y)
-				blandz.append(sim.particles[i].z)
-
-				landed +=1
-				Nparts -=1
-
-				sim.remove(i)
-
-
-
-
-	if dist <= surf:
-		print('rm=', n)
-
-		landx.append(x)
-		landy.append(y)
-		landz.append(z)
-
-		sim.remove(hash=n)
-
-		landed += 1
-		Nparts -= 1
-		rminds.append(n)
-
-
-
-
-	if binary == True:
-		xB = x - bx
-		yB = y - by
-		zB = z - bz
-
-		bdist = np.sqrt(xB ** 2 + yB ** 2 + zB ** 2)
-
-		bsurf = aB
-
-		if bdist <= bsurf:
-			print('rmb=', n)
-			blandx.append(x)
-			blandy.append(y)
-			blandz.append(z)
-
-			sim.remove(hash=n)
-			landed += 1
-			Nparts -= 1
-			rminds.append(n)
-
-
-
-
-	rmdatasave(landx, landy, landz, 'rmlandpartdata' + str(inttime) + condit + '.txt')
-
-	if binary == True:
-		rmdatasave(blandx, blandy, blandz, 'rmblandpartdata' + str(inttime) + condit + '.txt')
-
-	print('landed=', landed)
-	#print('rminds',rminds)
-	#print(sim.particles[h('bin')])
-
-	return sim, landed, Nparts, rminds
-
-
-
-
-
-def rmland(sim, Nparts, atarg, btarg, ctarg, landed, inttime, condit, axdir, axtilt, per, timestep, abin=0, rotation=False):
+def rmland(sim, Nparts, atarg, btarg, ctarg, landed, inttime, condit, axdir, axtilt, per, timestep, savefile, rotation=False, shapemodel=False, vertfile=None, bincent=False):
 	'''USE THIS'''
-	if abin > 0:
-		binary = True
-		number = 2
-	else:
-		binary = False
-		number = 1
+
 
 	bodies = np.linspace(0, sim.N-1, sim.N)
 
 	xp = np.asarray([sim.particles[int(i)].x for i in bodies])
 	yp = np.asarray([sim.particles[int(i)].y for i in bodies])
 	zp = np.asarray([sim.particles[int(i)].z for i in bodies])
+	#print('xp =',xp)
+
+	if bincent == True:
+		centx = xp[1]
+		centy = yp[1]
+		centz = zp[1]
+	else:
+		centx = xp[0]
+		centy = yp[0]
+		centz = zp[0]
 
 
 	# rotate particles back to where they should be above the surface
@@ -684,220 +389,163 @@ def rmland(sim, Nparts, atarg, btarg, ctarg, landed, inttime, condit, axdir, axt
 
 		xtilt, ytilt, ztilt = rotmatrix3d(xp, yp, zp, alpha, phiy, phix)
 
+		if bincent == True:
+			centx = xtilt[1]
+			centy = ytilt[1]
+			centz = ztilt[1]
+		else:
+			centx = xtilt[0]
+			centy = ytilt[0]
+			centz = ztilt[0]
+
 		# distance from center of body
-		cx = xtilt - sim.particles[0].x
-		cy = ytilt - sim.particles[0].y
-		cz = ztilt - sim.particles[0].z
+		cx = xtilt - centx#sim.particles[0].x
+		cy = ytilt - centy#sim.particles[0].y
+		cz = ztilt - centz#sim.particles[0].z
+		#print('center', np.sqrt(sim.particles[0].x**2 + sim.particles[0].y**2 + sim.particles[0].z**2))
 
-	elif rotation == False:
-		cx = xp - xp[0] #sim.particles[0].x
-		cy = yp - yp[0] #sim.particles[0].y
-		cz = zp - zp[0] #sim.particles[0].z
+	else:
+		cx = xp - centx #sim.particles[0].x
+		cy = yp - centy #sim.particles[0].y
+		cz = zp - centz #sim.particles[0].z
 
+
+	cx = cx[2:]
+	cy = cy[2:]
+	cz = cz[2:]
+	
 	# calculate point on surface
-	lat = np.arcsin(cz / np.sqrt(cx ** 2 + cy ** 2 + cz ** 2))
-	lon = np.arccos(cx / (np.sqrt(cx ** 2 + cy ** 2 + cz ** 2) * np.cos(lat)))
-
-	A = ((np.cos(lat)) ** 2 * (np.cos(lon)) ** 2) / atarg ** 2
-	B = ((np.cos(lat)) ** 2 * (np.sin(lon) ** 2)) / btarg ** 2
-	C = ((np.sin(lat)) ** 2) / ctarg ** 2
-
-	surf = np.sqrt((A + B + C) ** -1)
+	e2 = (atarg ** 2 - btarg ** 2) / atarg ** 2
+	p = np.sqrt(cx ** 2 + cy ** 2)
+	if shapemodel == True:
+		lat = np.arctan(cz / p)
+	else:
+		#print('pay attention', np.arctan(cz / ((1 - e2) * p)))
+		lat = np.arctan(cz / ((1 - e2) * p))
+                
+	lon = np.arctan(cy / cx)  
 	dist = np.sqrt(cx ** 2 + cy ** 2 + cz ** 2)
-	#surf = atarg
+	print('dist=', dist)
+
+	surf = []
+
+	if shapemodel == True:
+		x = []
+		y = []
+		z = []
+		# read in data files of shape model vertices to get surface 
+		with open(vertfile) as vertices:
+			vertice = csv.reader(vertices, delimiter='\t')
+			rownum = 0
+			for row in vertice:
+				#print(float(row[2]))
+				#print(row)
+				x.append(float(row[0]))
+				y.append(float(row[1]))
+				z.append(float(row[2]))
+				rownum += 1
+			vertx = 1e3 * np.asarray(x)
+			verty = 1e3 * np.asarray(y)
+			vertz = 1e3 * np.asarray(z)
+
+			# Calculate longitudes and latitudes of each vertex
+			vp = np.sqrt(vertx ** 2 + verty ** 2)
+			vlat = np.arctan(vertz / vp)
+			vlon = np.arctan(verty / vertx)
+
+			for i in range(len(lat)):
+				hav = (.5 * (1 - np.cos(lat[int(i)] - vlat)) + .5 * (1 - np.cos(lon[int(i)] - vlon)) * np.cos(lat[int(i)]) * np.cos(vlat))
+				indmin = np.argmin(hav)
+				surf.append(np.sqrt(vertx[int(indmin)]**2 + verty[int(indmin)]**2 + vertz[int(indmin)]**2))
+					
+				
+			
+			#shapesurf = np.sqrt(vertx ** 2 + verty ** 2 + vertz ** 2)
+			#for d in dist:
+			#	surf.append(np.min(np.abs(d - shapesurf)))
+			surf = np.asarray(surf)
+
+	else:
+		N = atarg / np.sqrt(1 - e2 * (np.sin(lat))**2)
+
+		xsurf = N * np.cos(lat) * np.cos(lon)
+		ysurf = N * np.cos(lat) * np.sin(lon)
+		zsurf = (1 - e2) * N * np.sin(lat)
+		#A = ((np.cos(lat)) ** 2 * (np.cos(lon)) ** 2) / atarg ** 2
+		#B = ((np.cos(lat)) ** 2 * (np.sin(lon) ** 2)) / btarg ** 2
+		#C = ((np.sin(lat)) ** 2) / ctarg ** 2
+
+		surf = np.sqrt(xsurf ** 2 + ysurf ** 2 + zsurf ** 2)  #(A + B + C) ** -1)
+		bigdiff = dist - surf
+	print('surf=', surf)	# np.where(dist<=surf))
 
 
 
-	print('zero', np.sqrt(sim.particles[0].x**2 + sim.particles[0].y**2 + sim.particles[0].z**2))
-	print('dist1', np.sqrt(xp ** 2 + yp ** 2 + zp ** 2))
-
-	# if binary == False:
-	# 	inds = np.where((dist - surf) <= 0)[0]
-	# 	inds += number
-	#
-	# elif binary == True:
-		# bsurf = abin
-		# bx = xp - xp[1] #sim.particles[1].x
-		# by = yp - yp[1] #sim.particles[1].y
-		# bz = zp - zp[1] #sim.particles[1].z
-		# bdist = np.sqrt(bx ** 2 + by ** 2 + bz ** 2)
-		# print('binary=', bdist)
-		# #np.concatenate((np.where(dist <= surf)[0], np.where(bdist <= bsurf)[0]))
-		# indsb = np.where(bdist <= bsurf)[0]
-		#inds += number - 1
-		#indsb += number - 1
 
 	landx = []
 	landy = []
 	landz = []
 	landbx, landby, landbz = ([], [], [])
 
-	inds = np.where(dist <= surf)[0]
+	#inds = np.where(dist < np.mean(surf[2:]))[0]
+	for i in reversed(np.arange(len(dist))):
+		#print(i)
+		if i > 2:
+			#print('difference', dist[int(i)], surf[int(i)])
+			if dist[int(i)] < surf[int(i)]:
+                                #print('surf', surf)
+                               
 
-	#print('shape', inds)
-	if inds.shape != 0:
-		for i in reversed(inds):
-			if i > 1:
-				print('ind',i)
-				landx.append(sim.particles[int(i)].x)
-				landy.append(sim.particles[int(i)].y)
-				landz.append(sim.particles[int(i)].z)
+				#print('REMOVE ONE')
+				landx.append(sim.particles[int(i+2)].x)
+				landy.append(sim.particles[int(i+2)].y)
+				landz.append(sim.particles[int(i+2)].z)
 
-				sim.remove(int(i))
+				sim.remove(int(i+2))
 				landed += 1
 				Nparts -= 1
-		print('land =', landed)
-
-	rmdatasave(landx, landy, landz, 'rmlandpartdata' + str(inttime) + condit + '.txt')
 
 
-	if binary == True:
-		#print indsb
 
-		bodies = np.linspace(0, sim.N - 1, sim.N)
 
-		xp = np.asarray([sim.particles[int(i)].x for i in bodies])
-		yp = np.asarray([sim.particles[int(i)].y for i in bodies])
-		zp = np.asarray([sim.particles[int(i)].z for i in bodies])
 
-		bsurf = abin
-		bx = xp - xp[1]  # sim.particles[1].x
-		by = yp - yp[1]  # sim.particles[1].y
-		bz = zp - zp[1]  # sim.particles[1].z
-		bdist = np.sqrt(bx ** 2 + by ** 2 + bz ** 2)
-		print('binary=', bdist)
-		# np.concatenate((np.where(dist <= surf)[0], np.where(bdist <= bsurf)[0]))
-		indsb = np.where(bdist <= bsurf)[0]
+	rmdatasave(landx, landy, landz, savefile + str(inttime) + condit + '.txt')
 
-		if indsb.shape != 0:
-			for ib in reversed(indsb):
-				if ib > 1:
-					landbx.append(sim.particles[int(ib)].x)
-					landby.append(sim.particles[int(ib)].y)
-					landbz.append(sim.particles[int(ib)].z)
 
-					sim.remove(int(ib))
-
-					landed += 1
-					Nparts -= 1
-
-		rmdatasave(landbx, landby, landbz, 'rmblandpartdata' + str(inttime) + condit + '.txt')
+#	if binary == True:
+#		 print('binaries are real')
+#		#print indsb
+#
+#		bodies = np.linspace(0, sim.N - 1, sim.N)
+#
+#		xp = np.asarray([sim.particles[int(i)].x for i in bodies])
+#		yp = np.asarray([sim.particles[int(i)].y for i in bodies])
+#		zp = np.asarray([sim.particles[int(i)].z for i in bodies])
+#
+#		bsurf = abin
+#		bx = xp - xp[1]	 # sim.particles[1].x
+#		by = yp - yp[1]	 # sim.particles[1].y
+#		bz = zp - zp[1]	 # sim.particles[1].z
+#		bdist = np.sqrt(bx ** 2 + by ** 2 + bz ** 2)
+#		print('binary=', bdist)
+#		# np.concatenate((np.where(dist <= surf)[0], np.where(bdist <= bsurf)[0]))
+#
+ #		 for ib in reversed(np.arange(len(bdist))):
+  #			 if ib > 2:
+   #				 if bdist[int(ib)] < bsurf[int(ib)]:
+    #					 
+#					landbx.append(sim.particles[int(ib)].x)
+#					landby.append(sim.particles[int(ib)].y)
+#					landbz.append(sim.particles[int(ib)].z)
+#
+#					sim.remove(int(ib))
+#
+#					landed += 1
+#					Nparts -= 1
+#
+#		rmdatasave(landbx, landby, landbz, 'rmblandpartdata' + str(inttime) + condit + '.txt')
 
 	return sim, landed, Nparts
-
-
-def rmlandedparts(sim, Nparts, atarg, btarg, ctarg, landed, rminds, binary=False, rbin=0, axdir=0, axtilt=0, omega=0):
-	'''DO NOT USE'''
-	landx = []
-	landy = []
-	landz = []
-
-	dt = sim.dt
-
-	if binary == True:
-		number = 2
-		bodies = np.linspace(number, Nparts+1, Nparts+1)
-	else:
-		number = 1
-		bodies = np.linspace(number, Nparts, Nparts)
-
-
-	# particle positions relative to gravitational body
-	xp = np.asarray([sim.particles[int(i)].x for i in bodies])
-	yp = np.asarray([sim.particles[int(i)].y for i in bodies])
-	zp = np.asarray([sim.particles[int(i)].z for i in bodies])
-
-	theta = np.radians(180. - axdir)
-	phi = np.radians(axtilt)
-	alpha = np.radians(-omega * dt)
-
-	phix = phi * np.cos(theta)
-	phiy = phi * np.sin(theta)
-
-	xtilt, ytilt, ztilt = rotmatrix3d(xp, yp, zp, alpha, phiy, phix)
-
-	cx = 0#sim.particles[0].x
-	cy = 0#sim.particles[0].y
-	cz = 0#sim.particles[0].z
-
-	x = xtilt - cx
-	y = ytilt - cy
-	z = ztilt - cz
-
-	# calculate point on surface
-	lat = np.arcsin(z / np.sqrt(x**2 + y**2 + z**2))
-	lon = np.arccos(x / (np.sqrt(x**2 + y**2 + z**2) * np.cos(lat)))
-
-	#curv = (atarg**2) / np.sqrt(atarg**2
-	#							- (atarg**2-ctarg**2) * np.sin(lat)**2
-	#							- (atarg**2-btarg**2) * np.cos(lat)**2 * np.sin(lon)**2)
-
-	#ee = (atarg**2 - btarg**2) / atarg**2
-	#ex = (atarg**2 - ctarg**2) / atarg**2
-
-	#x0 = curv * np.cos(lat) * np.cos(lon) - cx
-	#y0 = curv * (1 - ee) * np.cos(lat) * np.sin(lon) - cy
-	#z0 = curv * (1 - ex) * np.sin(lat) - cz
-
-
-	# calculate distances
-	distancerm = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-
-	A = ((np.cos(lat))**2 * (np.cos(lon))**2) / atarg**2
-	B = ((np.cos(lat))**2 * (np.sin(lon)**2)) / btarg**2
-	C = ((np.sin(lat))**2) / ctarg**2
-	#x0 = atarg * np.cos(lon) * np.cos(lat)
-	#y0 = btarg * np.sin(lon) * np.cos(lat)
-	#z0 = ctarg * np.sin(lat)
-
-	surfacerm  = np.sqrt((A + B + C) ** -1)
-	print('surface=', surfacerm)
-
-	#surfacerm = np.sqrt(x0 ** 2 + y0 ** 2 + z0 ** 2)
-
-	# set up binary case
-	if binary == True:
-		bx = sim.particles[1].x
-		by = sim.particles[1].y
-		bz = sim.particles[1].z
-		print('bindist=', np.sqrt(bx**2 + by**2 + bz**2))
-
-		binx = xp - bx
-		biny = yp - by
-		binz = zp - bz
-
-		bdist = np.sqrt(binx**2 + biny**2 + binz**2)
-		#print('bdist =', bdist)
-
-	inds = []
-
-#	for i in range(len(distancerm)):
-#		if distancerm[i] - surfacerm[i] <= 0:
-#			inds.append(i+number)
-#		if binary == True:
-#			if bdist[i] - rbin <= 0:
-#				inds.append(i)#+number)
-
-		#inds = np.where(distancerm - surfacerm <= 0 or bdist - rbin <= 0)[0] + number
-
-	inds = np.where(distancerm - surfacerm <= 0)[0] #+ number #np.where(distancerm[:] <= surfacerm[:])[0]
-
-	print('surf dist =', distancerm - surfacerm)
-	print('indslen =', len(inds))
-
-	Nparts -= len(inds)
-	if len(inds) != 0:
-		landx = [xp[i] for i in inds] #[sim.particles[int(i)].x for i in inds]
-		landy = [yp[i] for i in inds] #[sim.particles[int(i)].y for i in inds]
-		landz = [zp[i] for i in inds] #[sim.particles[int(i)].z for i in inds]
-
-		for i in inds[::-1]:
-			sim.remove(int(i))
-			rminds.append(int(i))
-		landed += len(inds)
-
-
-	return sim, Nparts, rminds, landed, landx, landy, landz, sim.particles[0].x
 
 
 
@@ -919,48 +567,6 @@ def rotmatrix3d(x, y, z, alpha, phi, theta):
 
 	return xp, yp, zp
 
-#
-# def rmlandedparts(sim, Nplanets, Nparts, atarg, btarg, ctarg, landed, rminds):
-# 	landx = []
-# 	landy = []
-# 	landz = []
-#
-# 	xp = np.asarray([sim.particles[int(j)].x for j in range(Nplanets, Nplanets + Nparts)])
-# 	yp = np.asarray([sim.particles[int(j)].y for j in range(Nplanets, Nplanets + Nparts)])
-# 	zp = np.asarray([sim.particles[int(j)].z for j in range(Nplanets, Nplanets + Nparts)])
-#
-# 	cx = sim.particles[0].x
-# 	cy = sim.particles[0].y
-# 	cz = sim.particles[0].z
-#
-# 	x = xp - cx
-# 	y = yp - cy
-# 	z = zp - cz
-#
-# 	lat = np.arctan(z / np.sqrt(x**2 + y**2))
-# 	lon = np.arctan(y / x)
-#
-# 	x0 = atarg * np.cos(lat) * np.cos(lon)
-# 	y0 = btarg * np.cos(lat) * np.sin(lon)
-# 	z0 = ctarg * np.sin(lat)
-#
-# 	distancerm = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-# 	surfacerm  = np.sqrt(x0 ** 2 + y0 ** 2 + z0 ** 2)
-# 	inds = np.where(distancerm[:] <= surfacerm[:])[0]
-#
-# 	Nparts -= len(inds)
-# 	if len(inds) != 0:
-# 		inds += Nplanets
-# 		landx = [sim.particles[int(i)].x for i in inds]
-# 		landy = [sim.particles[int(i)].y for i in inds]
-# 		landz = [sim.particles[int(i)].z for i in inds]
-#
-# 		for i in inds[::-1]:
-# 			sim.remove(int(i))
-# 			rminds.append(int(i))
-# 		landed += len(inds)
-#
-# 	return sim, Nparts, rminds, landed, landx, landy, landz, sim.particles[0].x
 
 
 def veldist(sim, r, mtarg, rtarg, mex, mu, rhoT, Cvps=0., Ctg=0.8, Ybar=0.): #vi, a, mi, rhoT, rhoI, mu, K1, Cvps=0., Ctg=0.8, Ybar=0.):
@@ -973,7 +579,7 @@ def veldist(sim, r, mtarg, rtarg, mex, mu, rhoT, Cvps=0., Ctg=0.8, Ybar=0.): #vi
 	# transient crater radius
 
 	# Rg = ((3. / np.pi) * (K1 * (mi / rhoT)) * (((g * a) / vi ** 2) * (rhoT / rhoI) ** (-1./3.)
-	# 										   + (Ybar / (rhoT * vi ** 2)) ** ((2 + mu) / 2)) ** (-3 * mu / (2 + mu))) ** (1. / 3.)
+	#										   + (Ybar / (rhoT * vi ** 2)) ** ((2 + mu) / 2)) ** (-3 * mu / (2 + mu))) ** (1. / 3.)
 
 #	Rg = K1 * (rhoT / mi) ** (-1. / 3.) * (rhoT / rhoI) ** ((2 + mu - 6 * 0.4) / (6 + 3 * mu)) * (
 #																								 (g * a) / vi ** 2) ** (
@@ -995,48 +601,17 @@ def veldist(sim, r, mtarg, rtarg, mex, mu, rhoT, Cvps=0., Ctg=0.8, Ybar=0.): #vi
 
 
 
-	# g = (6.67e-11 * mtarg) / (hpart + rtarg) ** 2   # constant
-	#
-	# R = 1.16 * (rhoi / rhot) ** (1. / 3.) * di ** .78 * vi ** .44 * g ** -.22   # constant
-	#
-	# #r    = np.sqrt(pos[0] ** 2 + pos[1] ** 2 + pos[2] ** 2)    # dependent on particle position
-	# rmin = np.min(r)
-	# rmax = np.max(r)
-	# print(len(r))
-	#
-	# vmin = .01 * v0
-	# vmax = 2 * v0
-	#
-	# k = (vmin / np.sqrt(g * R)) * (rmax / R) ** -ex   # constant
-	#
-	#
-	# ex = np.log(vmax / vmin) / np.log((rmin * rmax) / R**2)
-	# print(ex)
-	#
-	# v = (vmin) * ((rmin * r) / R**2) ** ex  #k * np.sqrt(g * R) * (r / R) ** -ex     #k * np.sqrt(g * R) *
-	# #v = np.full(int(len(pos[0])), vmin)
-	#
-	# v = (v / np.max(v)) * vmax*1.3
+	# Gaussian Distribution
+	vmean = np.mean(veff)
+	vstd  = np.std(veff)
 
-	# plot things
-
-	# fig, ax = plt.subplots()
-	# fig.subplots_adjust(hspace=.4, bottom=.25, left=.25)
-	#
-	# ax.scatter(r, veff / np.max(veff))  # / np.max(veff)))
-	# #ax.plot(r,np.zeros(len(r)), color='black', marker='_')
-	# #ax.set_xscale('log')
-	# ax.set_yscale('log')
-	# ax.set_ylabel(r'$v_{eff}$ [m/sec]')
-	# ax.set_xlabel(r'$R_{g}$ [m]')
-	# plt.savefig('veltest.png')
-	# plt.close()
+	vnorm = np.random.normal(vmean, vstd, len(r))
 
 
 	data = np.zeros((2, len(r)))
 
 	data[0, :] = r
-	data[1, :] = veff
+	data[1, :] = vnorm#veff
 	np.savetxt('veldistinit.txt', data, fmt='%.18e', delimiter=' ', newline='\n')
 
 	return veff

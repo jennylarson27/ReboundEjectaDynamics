@@ -4,6 +4,7 @@ import rebound
 import numpy as np
 import math as ma
 import basicsolarsystem1015 as bss
+import csv
 
 
 
@@ -23,10 +24,10 @@ def spheregrav(sim, surfpos, Mtarg, Nparts, binary=False):
 
 	if binary == True:
 		gravbod = 1
-		bodies  = np.delete(inds, gravbod, 0)
+		bodies	= np.delete(inds, gravbod, 0)
 	else:
 		gravbod = 0
-		bodies  = np.delete(inds, gravbod, 0)
+		bodies	= np.delete(inds, gravbod, 0)
 
 
 	c = sim.particles[gravbod]
@@ -85,7 +86,7 @@ def ellipgrav(sim, surfpos, Mtarg, Nparts, a1, b1, c1, dt, omega, axdir, axtilt,
 
 	theta = np.radians(180. - axdir)
 	phi   = np.radians(180. - axtilt)
-	#alpha = np.radians(180. - omega * dt)  # degrees rotated per timestep
+	#alpha = np.radians(180. - omega * dt)	# degrees rotated per timestep
 
 	phix = phi * np.sin(theta)
 	phiy = phi * np.cos(theta)
@@ -126,7 +127,8 @@ def ellipgrav(sim, surfpos, Mtarg, Nparts, a1, b1, c1, dt, omega, axdir, axtilt,
 	h = np.sqrt(a1**2 - b1**2)
 	k = np.sqrt(a1**2 - c1**2)
 
-	aellip = -(G * Mtarg) / np.sqrt((apos**2 - h**2) * (apos**2 - k**2))
+	aellip = -(G * Mtarg) / np.sqrt(np.abs((apos**2 - h**2) * (apos**2 - k**2)))
+	#print('denom', apos**2 - h**2, apos**2 - k**2)
 
 
 	axellip = aellip * xhat
@@ -176,7 +178,7 @@ def addnetgrav(sim, Mtarg, a1, b1, c1, Nplanets, Nparts, dt, omega, timestep, ax
 
 	asphere = ellipgrav(sim, (xsurf, ysurf, zsurf), Mtarg, Nparts, a1, a1, a1, dt, omega, axdir, axtilt, binary)#spheregrav(sim, (xsurf, ysurf, zsurf), Mtarg, Nparts, binary)
 
-	aellip  = ellipgrav(sim, (xsurf, ysurf, zsurf), Mtarg, Nparts, a1, b1, c1, dt, omega, axdir, axtilt, binary)
+	aellip	= ellipgrav(sim, (xsurf, ysurf, zsurf), Mtarg, Nparts, a1, b1, c1, dt, omega, axdir, axtilt, binary)
 
 	axnet, aynet, aznet = rmaddgrav(aellip, asphere)#aellip[0], aellip[1], aellip[2]  #
 
@@ -290,10 +292,10 @@ def rotvel(sim, per, lat, pos, axtilt, axdir,):# M, a1, b1, c1, binary=False):
 				+ vrot[1] * np.cos(np.radians(phi)) * np.sin(np.radians(theta)) \
 				+ vrot[2] * np.cos(np.radians(phi)) * np.cos(np.radians(theta))
 
-	print(vxrot, vyrot, vzrot)
-	print('vlin=',vlin)
+	#print(vxrot, vyrot, vzrot)
+	#print('vlin=',vlin)
 
-	return vxrot, vyrot, vzrot          # return the tilted velocities. these are in the global frame
+	return vxrot, vyrot, vzrot	    # return the tilted velocities. these are in the global frame
 
 
 
@@ -347,104 +349,275 @@ def rotpos(sim, per, Nplanets, Nparts, axtilt, axdir, timestep):
 
 
 
+### SHAPE MODEL ###
+def shapemass(vert, facet, M, layers=5):
+	x = []
+	y = []
+	z = []
+	v1 = []
+	v2 = []
+	v3 = []
+
+	# read in data files
+	with open(vert) as vertices:
+		vertice = csv.reader(vertices, delimiter='\t')
+		rownum = 0
+		for row in vertice:
+			#print(float(row[2]))
+			#print(row)
+			x.append(float(row[0]))
+			y.append(float(row[1]))
+			z.append(float(row[2]))
+			rownum += 1
+			#print(rownum)
+
+	with open(facet) as face:
+		faces = csv.reader(face, delimiter='\t')
+
+		for row in faces:
+			v1.append(float(row[0]))
+			v2.append(float(row[1]))
+			v3.append(float(row[2]))
+
+	x = np.asarray(x)
+	y = np.asarray(y)
+	z = np.asarray(z)
+	v1 = np.asarray(v1) - 1
+	v2 = np.asarray(v2) - 1
+	v3 = np.asarray(v3) - 1
+
+	N = len(v1)  # number of faces
+	facerange = np.linspace(0, N, N)
+	Atri = np.empty(shape=(layers, N))
+	GiFx = np.empty(shape=(layers, N))
+	GiFy = np.empty(shape=(layers, N))
+	GiFz = np.empty(shape=(layers, N))
+
+	v1x = np.empty(shape=(layers, N))
+	v1y = np.empty(shape=(layers, N))
+	v1z = np.empty(shape=(layers, N))
+
+	v2x = np.empty(shape=(layers, N))
+	v2y = np.empty(shape=(layers, N))
+	v2z = np.empty(shape=(layers, N))
+
+	v3x = np.empty(shape=(layers, N))
+	v3y = np.empty(shape=(layers, N))
+	v3z = np.empty(shape=(layers, N))
+
+
+	for layer in np.linspace(0, layers-1, layers):
+		for i in v1:
+			# Define coordinates of the vertex of each face
+			v1x[int(layer), :] = ((layer + 1) * x[int(i)]) / layers
+			v1y[int(layer), :] = ((layer + 1) * y[int(i)]) / layers
+			v1z[int(layer), int(i)] = ((layer + 1) * z[int(i)]) / layers
+
+		for j in v2:
+			v2x[int(layer), :] = ((layer + 1) * x[int(j)]) / layers
+			v2y[int(layer), :] = ((layer + 1) * y[int(j)]) / layers
+			v2z[int(layer), :] = ((layer + 1) * z[int(j)]) / layers
+
+		for k in v3:
+			v3x[int(layer), :] = ((layer + 1) * x[int(k)]) / layers
+			v3y[int(layer), :] = ((layer + 1) * y[int(k)]) / layers
+			v3z[int(layer), :] = ((layer + 1) * z[int(k)]) / layers
+
+
+	# Calculate area of the faces
+	ax = v2x - v1x
+	ay = v2y - v1y
+	az = v2z - v1z
+
+	bx = v3x - v1x
+	by = v3y - v1y
+	bz = v3z - v1z
+
+	cx = v3x - v2x
+	cy = v3y - v2y
+	cz = v3z - v2z
+
+	axax = ax * ax	#np.multiply(ax, ax)
+	bxbx = bx * bx	#np.multiply(bx, bx)
+	cxcx = cx * cx	#np.multiply(cx, cx)
+	ayay = ay * ay	#np.multiply(ay, ay)
+	byby = by * by	#np.multiply(by, by)
+	cycy = cy * cy	#np.multiply(cy, cy)
+	azaz = az * az	#np.multiply(az, az)
+	bzbz = bz * bz	#np.multiply(bz, bz)
+	czcz = cz * cz	#np.multiply(cz, cz)
+
+	# Surface area; Heron Method
+	a = np.sqrt(axax + ayay + azaz)	 # triangle edge value a
+	b = np.sqrt(bxbx + byby + bzbz)	 # triangle edge value b
+	c = np.sqrt(cxcx + cycy + czcz)	 # triangle edge value c
+
+	p = (a + b + c) / 2.  # semi-perimeter
+	pa = p - a
+	pb = p - b
+	pc = p - c
+
+	Atri = np.sqrt(p * pa * pb * pc)  # area of each triangle
+	Alayer = np.sum(Atri, axis=1)
+	Atot = np.sum(Atri)  # total surface area of body
+
+
+	# Barycenter of faces
+	XgF = (v1x + v2x + v3x) / 3.  # median x
+	YgF = (v1y + v2y + v3y) / 3.  # median y
+	ZgF = (v1z + v2z + v3z) / 3.  # median z
+
+
+
+	Xg = np.empty(shape=(layers, N))
+	Yg = np.empty(shape=(layers, N))
+	Zg = np.empty(shape=(layers, N))
+
+	# Barycenter of Sub-Tetrahedron (prisms 1 through layers-1)
+	for layer in np.linspace(0, layers-2, layers-1):
+		Xg[int(layer)] = (XgF[int(layer)] + XgF[int(layer+1)]) / 2.
+		Yg[int(layer)] = (YgF[int(layer)] + YgF[int(layer+1)]) / 2.
+		Zg[int(layer)] = (ZgF[int(layer)] + ZgF[int(layer+1)]) / 2.
+
+	# Barycenter of inner sub-tetrahedron
+	Xg[-1] = (v1x[-1] + v2x[-1] + v3x[-1]) / 4.
+	Yg[-1] = (v1y[-1] + v2y[-1] + v3y[-1]) / 4.
+	Zg[-1] = (v1z[-1] + v2z[-1] + v3z[-1]) / 4.
+
+
+	# Tetrahedron volumes
+	H = np.sqrt(XgF ** 2 + YgF ** 2 + ZgF ** 2)   # height of tetrahedron
+	Volall = np.empty(shape=(layers, N))
+	for l in np.linspace(0, layers-1, layers):
+		Volall[int(l)] = (Alayer[int(l)] * H[int(l)]) / 3
+
+
+	Vfin = np.empty(shape=(layers, N))
+	Vfin[-1] = Volall[-1]
+	for l in np.arange(layers-2, -1, -1):
+		Vfin[l] = Volall[l] - np.sum(Volall[-1:l:-1])
+
+	Vlayer = np.sum(Vfin, axis=1)
+	Vtotal = np.sum(Vfin)
+
+
+
+
+	# # Mass of each sub-face
+	# MiA = np.empty(shape=(layers, N))
+	# for l in np.linspace(0, layers-1, layers):
+	#	MiA[int(l)] = (M / Atot) * Atri[int(l)]
+	#
+	# MiAprova = np.sum(MiA, axis=1)   # Mass of each layer
+	# MprovaAF = np.sum(MiAprova)	   # Total mass overall
+
+
+	# Mass related to each volume
+	Mi = (M / Vtotal) * Vfin
+
+	return Mi, Xg, Yg, Zg
+
+
+
+
 
 
 	# Do not use the below functions.
 
 	#Ignore binary stuff for now. ce dan deal with that later when we know what we are doing.
 	# if binary == True:
-	# 	bodies = np.arange(0, Nplanets + Nparts)
-	# 	exclude = [1]
-	# 	bodyrange = np.delete(bodies, exclude)
+	#	bodies = np.arange(0, Nplanets + Nparts)
+	#	exclude = [1]
+	#	bodyrange = np.delete(bodies, exclude)
 	#
-	# 	x = np.asarray([sim.particles[int(j)].x for j in bodyrange])
-	# 	y = np.asarray([sim.particles[int(j)].y for j in bodyrange])
-	# 	z = np.asarray([sim.particles[int(j)].z for j in bodyrange])
+	#	x = np.asarray([sim.particles[int(j)].x for j in bodyrange])
+	#	y = np.asarray([sim.particles[int(j)].y for j in bodyrange])
+	#	z = np.asarray([sim.particles[int(j)].z for j in bodyrange])
 	#
-	# 	cx = sim.particles[1].x
-	# 	cy = sim.particles[1].y
-	# 	cz = sim.particles[1].z
+	#	cx = sim.particles[1].x
+	#	cy = sim.particles[1].y
+	#	cz = sim.particles[1].z
 
 
 	#else:
 
 	# Get particle locations
-	bodyrange = np.arange(Nplanets, Nplanets + Nparts)
-
-	x = np.asarray([sim.particles[int(j)].x for j in bodyrange])
-	y = np.asarray([sim.particles[int(j)].y for j in bodyrange])
-	z = np.asarray([sim.particles[int(j)].z for j in bodyrange])
-
-
-
-	xtilt = np.radians(axtilt) * np.sin(np.radians(axdir + 180))
-	ytilt = np.radians(axtilt) * np.cos(np.radians(axdir + 180))
-
-	xp = x*np.cos(rot)*np.cos(xtilt) \
-		 + y*(np.sin(rot)*np.cos(ytilt)-np.cos(rot)*np.sin(xtilt)*np.sin(ytilt)) \
-		 + z*(np.sin(rot)*np.cos(ytilt)+np.cos(rot)*np.sin(xtilt)*np.cos(ytilt))
-
-	yp = -x*np.sin(rot)*np.cos(xtilt) \
-		 + y*(np.cos(rot)*np.cos(ytilt)+np.sin(rot)*np.sin(xtilt)*np.sin(ytilt)) \
-		 + z*(np.sin(rot)*np.sin(ytilt)+np.cos(rot)*np.sin(xtilt)*np.cos(ytilt))
-
-	zp = -x*np.sin(xtilt) \
-		 - y*np.cos(xtilt)*np.sin(ytilt) \
-		 + z*np.cos(xtilt)*np.cos(ytilt)
-
-	# Locate lat/lon:
-	lon = np.degrees(np.arctan(yp / xp))
-	lat = np.degrees(np.sin(zp / np.sqrt(xp**2 + yp**2 + zp**2)))
-
-	# Point on the surface
-	# xsurf = aT * np.cos(np.radians(lon)) * np.cos(np.radians(lat))
-	# ysurf = bT * np.sin(np.radians(lon)) * np.cos(np.radians(lat))
-	# zsurf = cT * np.sin(np.radians(lat))
-
-	C1 = (a1 ** 2) / (b1 ** 2)
-	C2 = (a1 ** 2) / (c1 ** 2)
-
-	apos = np.sqrt(xp ** 2 + C1 * yp ** 2 + C2 * zp ** 2)
-
-	h = np.sqrt(a1**2 - b1**2)
-	k = np.sqrt(a1**2 - c1**2)
-
-	pot = (sim.G * M) / np.sqrt((apos**2 - h**2) * (apos**2 - k**2))
-
-	gx = -1*pot * (xp / apos)#np.sqrt(xp**2 + (a1 / b1)**2 * yp**2 + (a1 / c1) * zp**2)
-	gy = -1*pot * (yp / apos)#np.sqrt(xp**2 + (a1 / b1)**2 * yp**2 + (a1 / c1) * zp**2)
-	gz = -1*pot * (zp / apos)#np.sqrt(xp**2 + (a1 / b1)**2 * yp**2 + (a1 / c1) * zp**2)
-
-	#gx = sim.G * M * (xsurf / apos) * (1 / np.sqrt((apos ** 2 - h ** 2) * (apos ** 2 - k ** 2)))
-	#gy = sim.G * M * (ysurf / apos) * (1 / np.sqrt((apos ** 2 - h ** 2) * (apos ** 2 - k ** 2)))
-	#gz = sim.G * M * (zsurf / apos) * (1 / np.sqrt((apos ** 2 - h ** 2) * (apos ** 2 - k ** 2)))
-
-	gx += omega ** 2 * xp
-	gy += omega ** 2 * yp
-	#print out rotation phase
-
-
-	# Rotate grav vector back to global coordinates
-	gxtilt = np.radians(axtilt) * np.sin(np.radians(axdir))
-	gytilt = np.radians(axtilt) * np.cos(np.radians(axdir))
-
-	ggx = gx * np.cos(rot + 180.) * np.cos(gxtilt) \
-		 + gy * (np.sin(rot + 180.) * np.cos(gytilt) - np.cos(rot + 180.) * np.sin(gxtilt) * np.sin(gytilt)) \
-		 + gz * (np.sin(rot + 180.) * np.cos(gytilt) + np.cos(rot + 180.) * np.sin(gxtilt) * np.cos(gytilt))
-
-	ggy = -gx * np.sin(rot + 180.) * np.cos(gxtilt) \
-		 + gy * (np.cos(rot + 180.) * np.cos(gytilt) + np.sin(rot + 180.) * np.sin(gxtilt) * np.sin(gytilt)) \
-		 + gz * (np.sin(rot + 180.) * np.sin(gytilt) + np.cos(rot + 180.) * np.sin(gxtilt) * np.cos(gytilt))
-
-	ggz = -gx * np.sin(gxtilt) \
-		 - gy * np.cos(gxtilt) * np.sin(gytilt) \
-		 + gz * np.cos(gxtilt) * np.cos(gytilt)
-
-	#ax += ggx
-	#ay += ggy
-	#az += ggz
-	print('shapeggx', ggx.shape)
-	return ggx, ggy, ggz
+	# bodyrange = np.arange(Nplanets, Nplanets + Nparts)
+	#
+	# x = np.asarray([sim.particles[int(j)].x for j in bodyrange])
+	# y = np.asarray([sim.particles[int(j)].y for j in bodyrange])
+	# z = np.asarray([sim.particles[int(j)].z for j in bodyrange])
+	#
+	#
+	#
+	# xtilt = np.radians(axtilt) * np.sin(np.radians(axdir + 180))
+	# ytilt = np.radians(axtilt) * np.cos(np.radians(axdir + 180))
+	#
+	# xp = x*np.cos(rot)*np.cos(xtilt) \
+	#	 + y*(np.sin(rot)*np.cos(ytilt)-np.cos(rot)*np.sin(xtilt)*np.sin(ytilt)) \
+	#	 + z*(np.sin(rot)*np.cos(ytilt)+np.cos(rot)*np.sin(xtilt)*np.cos(ytilt))
+	#
+	# yp = -x*np.sin(rot)*np.cos(xtilt) \
+	#	 + y*(np.cos(rot)*np.cos(ytilt)+np.sin(rot)*np.sin(xtilt)*np.sin(ytilt)) \
+	#	 + z*(np.sin(rot)*np.sin(ytilt)+np.cos(rot)*np.sin(xtilt)*np.cos(ytilt))
+	#
+	# zp = -x*np.sin(xtilt) \
+	#	 - y*np.cos(xtilt)*np.sin(ytilt) \
+	#	 + z*np.cos(xtilt)*np.cos(ytilt)
+	#
+	# # Locate lat/lon:
+	# lon = np.degrees(np.arctan(yp / xp))
+	# lat = np.degrees(np.sin(zp / np.sqrt(xp**2 + yp**2 + zp**2)))
+	#
+	# # Point on the surface
+	# # xsurf = aT * np.cos(np.radians(lon)) * np.cos(np.radians(lat))
+	# # ysurf = bT * np.sin(np.radians(lon)) * np.cos(np.radians(lat))
+	# # zsurf = cT * np.sin(np.radians(lat))
+	#
+	# C1 = (a1 ** 2) / (b1 ** 2)
+	# C2 = (a1 ** 2) / (c1 ** 2)
+	#
+	# apos = np.sqrt(xp ** 2 + C1 * yp ** 2 + C2 * zp ** 2)
+	#
+	# h = np.sqrt(a1**2 - b1**2)
+	# k = np.sqrt(a1**2 - c1**2)
+	#
+	# pot = (sim.G * M) / np.sqrt((apos**2 - h**2) * (apos**2 - k**2))
+	#
+	# gx = -1*pot * (xp / apos)#np.sqrt(xp**2 + (a1 / b1)**2 * yp**2 + (a1 / c1) * zp**2)
+	# gy = -1*pot * (yp / apos)#np.sqrt(xp**2 + (a1 / b1)**2 * yp**2 + (a1 / c1) * zp**2)
+	# gz = -1*pot * (zp / apos)#np.sqrt(xp**2 + (a1 / b1)**2 * yp**2 + (a1 / c1) * zp**2)
+	#
+	# #gx = sim.G * M * (xsurf / apos) * (1 / np.sqrt((apos ** 2 - h ** 2) * (apos ** 2 - k ** 2)))
+	# #gy = sim.G * M * (ysurf / apos) * (1 / np.sqrt((apos ** 2 - h ** 2) * (apos ** 2 - k ** 2)))
+	# #gz = sim.G * M * (zsurf / apos) * (1 / np.sqrt((apos ** 2 - h ** 2) * (apos ** 2 - k ** 2)))
+	#
+	# gx += omega ** 2 * xp
+	# gy += omega ** 2 * yp
+	# #print out rotation phase
+	#
+	#
+	# # Rotate grav vector back to global coordinates
+	# gxtilt = np.radians(axtilt) * np.sin(np.radians(axdir))
+	# gytilt = np.radians(axtilt) * np.cos(np.radians(axdir))
+	#
+	# ggx = gx * np.cos(rot + 180.) * np.cos(gxtilt) \
+	#	 + gy * (np.sin(rot + 180.) * np.cos(gytilt) - np.cos(rot + 180.) * np.sin(gxtilt) * np.sin(gytilt)) \
+	#	 + gz * (np.sin(rot + 180.) * np.cos(gytilt) + np.cos(rot + 180.) * np.sin(gxtilt) * np.cos(gytilt))
+	#
+	# ggy = -gx * np.sin(rot + 180.) * np.cos(gxtilt) \
+	#	 + gy * (np.cos(rot + 180.) * np.cos(gytilt) + np.sin(rot + 180.) * np.sin(gxtilt) * np.sin(gytilt)) \
+	#	 + gz * (np.sin(rot + 180.) * np.sin(gytilt) + np.cos(rot + 180.) * np.sin(gxtilt) * np.cos(gytilt))
+	#
+	# ggz = -gx * np.sin(gxtilt) \
+	#	 - gy * np.cos(gxtilt) * np.sin(gytilt) \
+	#	 + gz * np.cos(gxtilt) * np.cos(gytilt)
+	#
+	# #ax += ggx
+	# #ay += ggy
+	# #az += ggz
+	# print('shapeggx', ggx.shape)
+	# return ggx, ggy, ggz
 
 
 
@@ -594,15 +767,15 @@ def binary(sim, m, r, a, e=0, i=0, periap=0, ascnode=0, f=0):
 
 	Parameters
 	----------
-	sim     : REBOUND simulation
-	m       : float; binary mass
-	r       : float; binary radius
-	a       : float; distance between binaries
-	e       : float; (default=0) binary eccentricity
-	i       : float; (default=0) binary inclination
-	periap  : float; (default=0) argument of periapsis for binary
+	sim	: REBOUND simulation
+	m	: float; binary mass
+	r	: float; binary radius
+	a	: float; distance between binaries
+	e	: float; (default=0) binary eccentricity
+	i	: float; (default=0) binary inclination
+	periap	: float; (default=0) argument of periapsis for binary
 	ascnode : float; (default=0) longitude of ascending node for binary
-	f       : float; (default=0) true anomaly of binary
+	f	: float; (default=0) true anomaly of binary
 
 	Returns
 	-------
@@ -690,7 +863,7 @@ def sizedist(Nparts, Res, rmin, rmax, p):
 	pow = -p
 	C = Nparts * (1 / (rmax ** (1 - pow) - rmin ** (1 - pow)))
 	const = 1 - Nparts * ((rmax ** (1 - pow)) / (rmax ** (1 - pow) - rmin ** (1 - pow)))
-	r = np.linspace(rmin, rmax, Res)
+	r = np.linspace(rmin, rmax, int(Res))
 	N = -(C * r ** (1 - pow)) + const
 
 	counts = np.round(N, 0)
@@ -740,13 +913,13 @@ def radforce(sim, Nparts, Nplanets, r, rho, L=3.828e26, msun=2e30):
 
 	Parameters
 	----------
-	sim     : REBOUND simulation
-	Nparts  : int; number of particles
+	sim	: REBOUND simulation
+	Nparts	: int; number of particles
 	Nplanets: int; number of planets
-	r       : array; particle diameters
-	rho     : float; particle density
-	L       : float; defaults to luminosity of the sun
-	msun    : float; defaults to mass of sun
+	r	: array; particle diameters
+	rho	: float; particle density
+	L	: float; defaults to luminosity of the sun
+	msun	: float; defaults to mass of sun
 
 	Returns
 	-------
@@ -776,13 +949,13 @@ def solarradpress(sim, Nplanets, possun, rho=2e3):
 	'''USE THIS EQUATION'''
 
 	SBconst = 5.67e-8     # Stephen-Boltzmann Constant
-	Tsun = 5.778e3        # Kelvin
+	Tsun = 5.778e3	      # Kelvin
 	Rsun = 6.95508e8      # meters Sun radius
 
-	tsi = 1.36e3          # W/m**2
+	tsi = 1.36e3	      # W/m**2
 	eps = 1.5
-	c = 3e8               # m/s
-	Msun = 2e30           #kg
+	c = 3e8		      # m/s
+	Msun = 2e30	      #kg
 	G = sim.G
 
 	ax = []
